@@ -1,14 +1,12 @@
 <template>
-<div>
-    look at console
-</div>
+  <div>look at console</div>
 </template>
 <script>
-import * as acorn from 'acorn'
+import * as acorn from "acorn";
 
-import accept from '../js/ByteCode'
+import jsvm from "../js/ByteCode";
 
-const jsCode=`
+const jsCode = `
 // const c={
 //   a:1,
 //   c:"cdf",
@@ -41,22 +39,25 @@ while(b-->0){
 while(b-->0) console.log(b);
 
 log(b)
-`
-
+`;
 
 export default {
-  name: 'AcornTest',
+  name: "AcornTest",
   props: {
-    msg: String
+    msg: String,
   },
-  mounted(){
+  mounted() {
+    const node = acorn.parse(jsCode, {
+      sourceType: "script",
+      ecmaVersion: 2015,
+    });
 
-    const node=acorn.parse(jsCode,{sourceType:'script',ecmaVersion:2015})
-
-    console.log(node)
-    console.log(accept.accept(node))
-  }
-}
+    console.log(node);
+    const vm=jsvm.accept(node)
+    console.log(vm);
+    console.log(vm.compile());
+  },
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

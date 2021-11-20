@@ -1,413 +1,4 @@
-const bydecodeDef = {
-    add: {
-        des: {
-            code: "add",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'add',
-        val: 1
-    },
-    min: {
-        des: {
-            code: "min",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'min',
-        val: 2
-    },
-    mul: {
-        des: {
-            code: "mul",
-            stack: "[arg1,arg2]",
-        },
-        name: 'mul',
-        val: 3
-    },
-    div: {
-        des: {
-            code: "div",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'div',
-        val: 4
-    },
-    mod: {
-        des: {
-            code: "mod",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'mod',
-        val: 5
-    },
-    eqJmp: {
-        des: {
-            code: "eqJmp codeIndex",
-            stack: "[arg1,arg2]",
-            newStack: "[]"
-        },
-        name: 'eqJmp',
-        val: 6
-    },
-    neqJmp: {
-        des: {
-            code: "neqJmp codeIndex",
-            stack: "[arg1,arg2]",
-            newStack: "[]"
-        },
-        name: 'neqJmp',
-        val: 7
-    },
-    loadConst: {
-        des: {
-            code: "newClassObject stringValueIndex",
-            stack: "[]",
-            newStack: "[stringVal]"
-        },
-        name: 'loadConst',
-        val: 8
-    },
-    mkArr: {
-        des: {
-            code: "mkArr argsLenth",
-            stack: "[arg1,arg2,arg3...]",
-            newStack: "[[arg1,arg2,arg3...]]"
-        },
-        name: 'makeArray',
-        val: 9
-    },
-    loadVar: {
-        des: {
-            code: "loadVar tagetObjectStackPosition[stackIndex,positionIndex]",
-            stack: "[]",
-            newStack: "[varVal]"
-        },
-        name: 'loadVar',
-        val: 10
-    },
-    loadValue: {
-        des: {
-            code: "loadValue val",
-            stack: "[]",
-            newStack: "[val]"
-        },
-        name: 'loadValue',
-        val: 11
-    },
-    newStack: {
-        des: {
-            code: "newStack",
-            stack: "[]",
-            newStack: "[][]"
-        },
-        name: 'newStack',
-        val: 12
-    },
-    storeVar: {
-        des: {
-            code: "storeVar tagetObjectStackPosition[stackIndex,positionIndex]",
-            stack: "[arg]",
-            newStack: "[]"
-        },
-        name: 'storeVar',
-        val: 13
-    },
-    newClassObject: {
-        des: {
-            code: "newClassObject classNameIndex argsLenth",
-            stack: "[arg1,arg2,arg3...]",
-            newStack: "[retVal]"
-        },
-        name: 'newClassObject',
-        val: 14
-    },
-    callFunc: {
-        des: {
-            code: "callFunc functionNameIndex argsLenth",
-            stack: "[arg1,arg2,arg3...]",
-            newStack: "[retVal]"
-        },
-        name: 'callFunc',
-        val: 15
-    },
-    memberMethod: {
-        des: {
-            code: "memberMethod tagetObjectStackPosition[stackIndex,positionIndex] functionNameIndex argsLenth",
-            stack: "[arg1,arg2,arg3...]",
-            newStack: "[retVal]"
-        },
-        name: 'memberMethod',
-        val: 16
-    },
-    popStack: {
-        des: {
-            code: "and",
-            stack: "[objToPop]",
-            newStack: "[]"
-        },
-        name: 'popStack',
-        val: 17
-    },
-    and: {
-        des: {
-            code: "and",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'and',
-        val: 18
-    },
-    or: {
-        des: {
-            code: "or",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'or',
-        val: 19
-    },
-    byteAnd: {
-        des: {
-            code: "byteAnd",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'byteAnd',
-        val: 20
-    },
-    byteOr: {
-        des: {
-            code: "byteOr",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'byteOr',
-        val: 21
-    },
-    loadNull: {
-        des: {
-            code: "loadNull",
-            stack: "[]",
-            newStack: "[null]"
-        },
-        name: 'loadNull',
-        val: 22
-    },
-    envMemberMethod: {
-        des: {
-            code: "envMemberMethod tagertObjectNameIndex targetFunctionNameIndex argsLenth",
-            stack: "[arg1,arg2,arg3...]",
-            newStack: "[retVal]"
-        },
-        name: 'envMemberMethod',
-        val: 23
-    },
-    loadEnv: {
-        des: {
-            code: "loadEnv tagertObjectNameIndex",
-            stack: "[]",
-            newStack: "[targetObject]"
-        },
-        name: 'loadEnv',
-        val: 24
-    },
-    jmpZero: {
-        des: {
-            code: "jmpZero codeIndex",
-            stack: "[testVal]",
-            newStack: "[]"
-        },
-        name: 'jmpZero',
-        val: 24
-    },
-    jmpNotZero: {
-        des: {
-            code: "jmpNotZero codeIndex",
-            stack: "[testVal]",
-            newStack: "[]"
-        },
-        name: 'jmpNotZero',
-        val: 24
-    },
-    delStack: {
-        des: {
-            code: "delStack",
-            stack: "[][]",
-            newStack: "[]"
-        },
-        name: 'delStack',
-        val: 25
-    },
-    noop: {
-        des: {
-            code: "noop",
-            stack: "[]",
-            newStack: "[]"
-        },
-        name: 'noop',
-        val: 26
-    },
-    lt: {
-        des: {
-            code: "lt",
-            stack: "[var1,var2]",
-            newStack: "[testResult]"
-        },
-        name: 'lt',
-        val: 27
-    },
-    gt: {
-        des: {
-            code: "gt",
-            stack: "[var1,var2]",
-            newStack: "[testResult]"
-        },
-        name: 'gt',
-        val: 28
-    },
-    lte: {
-        des: {
-            code: "lte",
-            stack: "[var1,var2]",
-            newStack: "[testResult]"
-        },
-        name: 'lte',
-        val: 28
-    },
-    gte: {
-        des: {
-            code: "gte",
-            stack: "[var1,var2]",
-            newStack: "[testResult]"
-        },
-        name: 'gte',
-        val: 28
-    },
-    inc: {
-        des: {
-            code: "inc",
-            stack: "[var1]",
-            newStack: "[var1+1]"
-        },
-        name: 'inc',
-        val: 29
-    },
-    dec: {
-        des: {
-            code: "dec",
-            stack: "[var1]",
-            newStack: "[var1-1]"
-        },
-        name: 'dec',
-        val: 30
-    },
-    dupStack: {
-        des: {
-            code: "dupStack",
-            stack: "[var1]",
-            newStack: "[var1,var1]"
-        },
-        name: 'dupStack',
-        val: 31
-    },
-    eq: {
-        des: {
-            code: "eq",
-            stack: "[var1,var2]",
-            newStack: "[testResult]"
-        },
-        name: 'eq',
-        val: 32
-    },
-    jmp: {
-        des: {
-            code: "jmp codeIndex",
-            stack: "[]",
-            newStack: "[]"
-        },
-        name: 'jmp',
-        val: 33
-    },
-    loadProp: {
-        des: {
-            code: "loadProp",
-            stack: "[target,property]",
-            newStack: "[val]"
-        },
-        name: 'loadProp',
-        val: 34
-    },
-    setProp: {
-        des: {
-            code: "setProp",
-            stack: "[val,target,property]",
-            newStack: "[]"
-        },
-        name: 'setProp',
-        val: 35
-    },
-    movToTmp: {
-        des: {
-            code: "movToTmp tempValudeIndex",
-            stack: "[target]",
-            newStack: "[]",
-            tmp: "temp[tempValudeIndex]=target"
-        },
-        name: 'movToTmp',
-        val: 36
-    },
-    movFromTmp: {
-        des: {
-            code: "movFromTmp tempValudeIndex",
-            stack: "[]",
-            newStack: "[target]",
-            tmp: "temp[tempValudeIndex]=null"
-        },
-        name: 'movFromTmp',
-        val: 37
-    },
-    retFunc: {
-        des: {
-            code: "retFunc",
-            stack: "[retVal]",
-            newStack: "[]",
-            retStack:"retVal"
-        },
-        name: 'retFunc',
-        val: 38
-    },
-    newObj: {
-        des: {
-            code: "newObj",
-            stack: "[]",
-            newStack: "[obj]"
-        },
-        name: 'newObj',
-        val: 39
-    },
-    rsetProp: {
-        des: {
-            code: "rsetProp",
-            stack: "[target,property,val]",
-            newStack: "[]"
-        },
-        name: 'rsetProp',
-        val: 40
-    },
-    movRet: {
-        des: {
-            code: "movRet",
-            stack: "[target]",
-            newStack: "[]",
-            retStack:"target"
-        },
-        name: 'movRet',
-        val: 41
-    },
-}
+import bydecodeDef from './CodeDefine'
 
 class __JSVM {
     constructor() {
@@ -483,8 +74,46 @@ __JSVM.prototype.findVar = function (name) {
 }
 
 __JSVM.prototype.compile = function () {
-   
-    return -1
+   const data=[]
+   const codePositonTag=[]
+   const codeMap=[]
+   for(let i=0;this.code[i];++i){
+       codeMap[i]=data.length
+       const ins=this.code[i]
+       data.push(ins[0].val)
+       //记录跳转代码位置
+       switch(ins[0].val){
+            case bydecodeDef.jmp.val:
+            case bydecodeDef.jmpNotZero.val:
+            case bydecodeDef.jmpZero.val:
+            case bydecodeDef.eqJmp.val:
+            case bydecodeDef.neqJmp.val:{
+                if(!codePositonTag[ins[1]]){
+                    codePositonTag[ins[1]]=[]
+                }
+                codePositonTag[ins[1]].push(data.length)
+            }break;     
+        }
+       for(let j=1;ins[j];++j){
+           if(typeof ins[j]==="number"){
+            data.push(ins[j])
+           }else if(ins[j] instanceof Array){
+            for(let k=0;k<ins[j].length;k++){
+                data.push(ins[j][k])
+            }
+           }else{
+               break;//跳过解释代码
+           }
+       }
+   }
+   //更新代码跳转位置
+   for(let p in codePositonTag){
+       const update=codePositonTag[p]
+       update.forEach(v=>{
+            data[v]=codeMap[p]
+       })
+   }
+    return data
 }
 
 function accept(node) {
@@ -492,8 +121,8 @@ function accept(node) {
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     blockStatement(vm, node)
-    // vm.code.push([bydecodeDef.delStack])
-    // vm.qiutBlock()
+    vm.code.push([bydecodeDef.delStack])
+    vm.qiutBlock()
 
     const code=[]
     //刷新标记点
