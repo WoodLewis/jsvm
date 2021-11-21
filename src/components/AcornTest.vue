@@ -7,38 +7,26 @@ import * as acorn from "acorn";
 import jsvm from "../js/ByteCode";
 
 const jsCode = `
-// const c={
-//   a:1,
-//   c:"cdf",
-//   d:new Date()
-// }
-const b=1+2
-// const arr=[1,2,3,4,5,new Date(1222),func(123,'abc')]
-// const str='abcdsff',nstr=arr
-// const date=new Date(1234567788)
-// console.log(arr[1][0])
-// arr.split(2)
-// logStr('abc',123)
-for(let i=0;b++,i<6;++i){
-  // if(i<3) continue;
-  // if(i>9){
-  //   break;
-  // }
-  // if(i===3){
-  //   continue;
-  // }
-  // if(b=4){
-  //   continue;
-  // }
-  console.log(i)
+const c={
+  a:1,
+  c:"cdf",
+  d:new Date()
 }
+const b=1+2
+const arr=[1,2,3,4,5,new Date(1222)]
+const str='abcdsff',nstr=arr
+const date=new Date(1234567788)
+console.log(arr[1][0])
+arr.slice(2)
+
 while(b-->0){
   console.log(b)
 }
-
+console.log(c.d.getTime())
 while(b-->0) console.log(b);
 
-log(b)
+b+1
+arr
 `;
 
 export default {
@@ -55,7 +43,9 @@ export default {
     console.log(node);
     const vm=jsvm.accept(node)
     console.log(vm);
-    console.log(vm.compile());
+    const runtime=vm.compile()
+    console.log(runtime);
+    console.log(runtime.run())
   },
 };
 </script>

@@ -1,4 +1,4 @@
-export function Runtime(){
+function Runtime(){
     this.stack=[]
     this.stackArray=[]
     this.pointer=[]
@@ -6,14 +6,38 @@ export function Runtime(){
     this.codeOffset=0
     this.constants=[]
     this.code=[]
+    this.env={}
+    this.retVal=null
+    this.codeMap=[]
+}
+
+Runtime.prototype.run=function(){
+    this.pointer=this.codeOffset
+    while(this.pointer<this.code.length){
+        this.codeMap[this.code[this.pointer]](this)
+    }
+    return this.retVal
+}
+
+Runtime.prototype.retValue=function(retVal){
+    return this.retVal=retVal
+}
+
+Runtime.prototype.envObject=function(name){
+    if(this.env[name]===undefined){
+        return window[name]
+    }
+    return this.env[name]
 }
 
 Runtime.prototype.newStack=function(){
-    return this.stackArray.push([])
+    this.stack[this.stack.length]=[]
+    this.stackArray[this.stackArray.length]=[]
 }
 
 Runtime.prototype.delStack=function(){
-    return this.stackArray.pop()
+    this.stack.pop()
+    this.stackArray.pop()
 }
 
 Runtime.prototype.nextCodeNVal=function(n){
@@ -24,33 +48,40 @@ Runtime.prototype.nextCodeVal=function(){
 }
 
 Runtime.prototype.storeStackValue=function(stack,index,val){
-    return this.stackArray[stack,index]=val
+    return this.stackArray[stack][index]=val
 }
 
 Runtime.prototype.visitStackVal=function(stack,index){
-    return this.stackArray[stack,index]
+    return this.stackArray[stack][index]
 }
 
 Runtime.prototype.pushStack=function(obj){
-    const stack=this.stack[this.stack.length-1]
-    return stack.push(obj)
+    const st=this.stack[this.stack.length-1]
+    return st.push(obj)
 }
 
 Runtime.prototype.popStackTop=function(){
-    const stack=this.stack[this.stack.length-1]
-    return stack.pop()
+    const st=this.stack[this.stack.length-1]
+    return st.pop()
+}
+
+Runtime.prototype.dupStackTop=function(){
+    const st=this.stack[this.stack.length-1]
+    const val=st[st.length-1]
+    st.push(val)
+    return val
 }
 
 Runtime.prototype.popStackTopN=function(N){
-    const stack=this.stack[this.stack.length-1]
+    const st=this.stack[this.stack.length-1]
     const arr=[]
     for(let i=N;i>0;--i){
-        arr[i-1]= stack.pop()
+        arr[i-1]= st.pop()
     }
     return arr
 }
 Runtime.prototype.popStackCodeTopN=function(){
-    return this.popStackTopN(this.code[this.pointer])
+    return this.popStackTopN(this.code[this.pointer+1])
 }
 
 Runtime.prototype.loadConstant=function(index){
@@ -66,6 +97,7 @@ Runtime.prototype.goto=function(index){
 }
 
 Runtime.prototype.jmp=function(){
-    this.pointer+=1
-    this.goto(this.code[this.pointer])
+    this.goto(this.code[this.pointer+1])
 }
+
+export default Runtime

@@ -1,4 +1,5 @@
 import bydecodeDef from './CodeDefine'
+import Runtime from "./Runtime"
 
 class __JSVM {
     constructor() {
@@ -94,7 +95,7 @@ __JSVM.prototype.compile = function () {
                 codePositonTag[ins[1]].push(data.length)
             }break;     
         }
-       for(let j=1;ins[j];++j){
+       for(let j=1;j<ins.length;++j){
            if(typeof ins[j]==="number"){
             data.push(ins[j])
            }else if(ins[j] instanceof Array){
@@ -113,7 +114,16 @@ __JSVM.prototype.compile = function () {
             data[v]=codeMap[p]
        })
    }
-    return data
+   const runtime=new Runtime()
+   runtime.constants=this.consts
+   runtime.code=data
+   const codeMethod=[]
+   for(let code in bydecodeDef){
+       const ins=bydecodeDef[code]
+       codeMethod[ins.val]=ins.apply
+   }
+   runtime.codeMap=codeMethod
+   return runtime
 }
 
 function accept(node) {
@@ -196,7 +206,9 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
             } break;
             case "ExpressionStatement": {
                 const expression = body[i].expression
-                loadDefVar(vm, expression);
+                const tag=new __Tag("expressTag")
+                loadDefVar(vm, expression,tag);
+                vm.code.push(tag)
                 vm.code.push([bydecodeDef.movRet])
             } break;
             case "ForStatement": {
@@ -215,7 +227,9 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
 
 function returnStatement(vm,node){
     if(node.argument){
-        loadDefVar(vm,node.argument)
+        const tag=new __Tag("retTag")
+        loadDefVar(vm,node.argument,tag)
+        vm.code.push(tag)
     }else{
         vm.code.push([bydecodeDef.loadNull])
     }
@@ -229,12 +243,14 @@ function VariableDeclarator(vm, node) {
     if (!idx) {
         idx = vm.addVar(name)
     }
-    loadDefVar(vm,node.init)
+    const tag=new __Tag("initTag")
+    loadDefVar(vm,node.init,tag)
+    vm.code.push(tag)
     vm.code.push([bydecodeDef.storeVar, idx])
     return idx
 }
 
-function loadDefVar(vm, node) {
+function loadDefVar(vm, node,nextBlockTag) {
     const type = node.type
     if (type === "VariableDeclarator") {
         return VariableDeclarator(vm, node)
@@ -243,9 +259,11 @@ function loadDefVar(vm, node) {
         const ps=node.properties
         for(let i=0;ps[i];++i){
             vm.code.push([bydecodeDef.dupStack])
-            // loadDefVar(vm,ps[i].key)
+            // loadDefVar(vm,ps[i].key,nextBlockTag)
             vm.code.push([bydecodeDef.loadConst, vm.addConstr(ps[i].key.name)])
-            loadDefVar(vm,ps[i].value)
+            const psTag=new __Tag("psTag")
+            loadDefVar(vm,ps[i].value,psTag)
+            vm.code.push(psTag)
             vm.code.push([bydecodeDef.rsetProp])
         }
         return null
@@ -261,7 +279,9 @@ function loadDefVar(vm, node) {
     } else if (type === "ArrayExpression") {
         const es = node.elements
         for (let i = 0; es[i]; ++i) {
-            loadDefVar(vm,es[i])
+            const esTag=new __Tag("esTag")
+            loadDefVar(vm,es[i],esTag)
+            vm.code.push(esTag)
         }
         vm.code.push([bydecodeDef.mkArr, es.length])
         return null
@@ -280,11 +300,15 @@ function loadDefVar(vm, node) {
             if (i > 0) {
                 vm.code.push([bydecodeDef.popStack])
             }
-            lastIdx = loadDefVar(vm,es[i])
+            const esTag=new __Tag("esTag")
+            lastIdx = loadDefVar(vm,es[i],esTag)
+            vm.code.push(esTag)
         }
         return lastIdx
     } else if (type == "UpdateExpression") {
-        const idx = loadDefVar(vm, node.argument)
+        const updataTag=new __Tag("updateTag")
+        const idx = loadDefVar(vm, node.argument,updataTag)
+        vm.code.push(updataTag)
         if (!node.prefix) {
             vm.code.push([bydecodeDef.dupStack])
         }
@@ -303,20 +327,46 @@ function loadDefVar(vm, node) {
             }
         } else if (node.argument.type == "MemberExpression") {
             const ag = node.argument
-            loadDefVar(vm, ag.object)
-            loadDefVar(vm, ag.property)
+            const objTag=new __Tag("objectTag")
+            loadDefVar(vm, ag.object,objTag)
+            vm.code.push(objTag)
+            const propTag=new __Tag("propTag")
+            loadDefVar(vm, ag.property,propTag)
+            vm.code.push(propTag)
             vm.code.push([bydecodeDef.setProp])
         }
 
         return idx
 
     } else if (type === "MemberExpression") {
-        loadDefVar(vm, node.object)
-        loadDefVar(vm, node.property)
+        if(node.object.type==="Identifier"&&node.property.type==="Identifier"){
+            const name = node.object.name
+            let idx = vm.findVar(name)
+            if (idx[0] === -1) {
+                vm.code.push([bydecodeDef.loadEnv, vm.addConstr(name)])
+            } else {
+                vm.code.push([bydecodeDef.loadVar, idx])
+            }
+            vm.code.push([bydecodeDef.loadConst, vm.addConstr(node.property.name)])
+        }else{
+            const objTag=new __Tag("objectTag")
+            loadDefVar(vm, node.object,objTag)
+            vm.code.push(objTag)
+            if(node.property.type==="Identifier"){
+                vm.code.push([bydecodeDef.loadConst, vm.addConstr(node.property.name)])
+            }else{
+                const propTag=new __Tag("propTag")
+                loadDefVar(vm, node.property,propTag)
+                vm.code.push(propTag)
+            }
+        }
+
         vm.code.push([bydecodeDef.loadProp])
         return "cacl"
     }else if(type==="AssignmentExpression"){
-        loadDefVar(vm, node.right)
+        const rightTag=new __Tag("rightTag")
+        loadDefVar(vm, node.right,rightTag)
+        vm.code.push(rightTag)
         const left=node.left
         if (left.type == "Identifier") {
             const idx =  loadIdentifier(vm, left)
@@ -327,13 +377,63 @@ function loadDefVar(vm, node) {
             }
             return idx
         } else if (left.type == "MemberExpression") {
-            loadDefVar(vm, left.object)
-            loadDefVar(vm, left.property)
+            const objTag=new __Tag("objectTag")
+            loadDefVar(vm, left.object,objTag)
+            vm.code.push(objTag)
+            const propTag=new __Tag("propTag")
+            loadDefVar(vm, left.property,propTag)
+            vm.code.push(propTag)
             vm.code.push([bydecodeDef.setProp])
             return null
         }
+    }else if(type==="LogicalExpression"){
+        const tagLeft=new __Tag("leftTag")
+        loadDefVar(vm, node.left,tagLeft)
+        vm.code.push(tagLeft)
+        vm.code.push( [bydecodeDef.dupStack])
+        if(node.operator==="||"){
+            const jmpToNext = [bydecodeDef.jmpNotZero, 0, nextBlockTag, '//jump to logicalExpression, refresh position after finish compile']
+            nextBlockTag.addListener(jmpToNext)
+            vm.code.push(jmpToNext)
+        }else if(node.operator==="&&"){
+            const jmpToNext = [bydecodeDef.jmpZero, 0, nextBlockTag, '//jump to logicalExpression, refresh position after finish compile']
+            nextBlockTag.addListener(jmpToNext)
+            vm.code.push(jmpToNext)
+        }
+        vm.code.push( [bydecodeDef.popStack])
+        const tagRight=new __Tag("tagRight")
+        loadDefVar(vm, node.right,tagRight)
+        vm.code.push(tagRight)
+        return null
+    }else if(type==="ConditionalExpression"){
+        return conditionalExpression(vm,node,nextBlockTag)
     }
     throw new Error("unknown variable type " + type)
+}
+
+function conditionalExpression(vm,node,retTag){
+    const test=new __Tag("testTag")
+    loadDefVar(vm,node.test,test)
+    vm.code.push(test)
+
+    const alterTag=new __Tag("alterTag")
+    const jmpToAlter = [bydecodeDef.jmpZero, 0, alterTag, '//jump to return, refresh position after finish compile']
+    alterTag.addListener(jmpToAlter)
+    vm.code.push(jmpToAlter)
+
+    const valTag=new __Tag("valTag")
+    loadDefVar(vm,node.consequent,valTag)
+    vm.code.push(valTag)
+    const jmpToRet = [bydecodeDef.jmp, 0, retTag, '//jump to return, refresh position after finish compile']
+    retTag.addListener(jmpToRet)
+    vm.code.push(jmpToRet)
+
+    vm.code.push(alterTag)
+    const lastTag=new __Tag("lastTag")
+    loadDefVar(vm,node.alternate,lastTag)
+    vm.code.push(lastTag)
+
+    return null
 }
 
 function loadIdentifier(vm, node) {
@@ -351,7 +451,9 @@ function newExpression(vm, node) {
     const callee = node.callee
     const args = node.arguments
     for (let i = 0; args[i]; ++i) {
-        loadDefVar(vm,args[i])
+        const tag=new __Tag("varLoadTag")
+        loadDefVar(vm,args[i],tag)
+        vm.code.push(tag)
     }
     vm.code.push([bydecodeDef.newClassObject, vm.addConstr(callee.name), args.length])
     return null
@@ -361,19 +463,37 @@ function callExpression(vm, node) {
     const callee = node.callee
     const args = node.arguments
     for (let i = 0; args[i]; ++i) {
-        loadDefVar(vm,args[i])
+        const tag=new __Tag("varLoadTag")
+        loadDefVar(vm,args[i],tag)
+        vm.code.push(tag)
     }
     if (callee.type === "Identifier") {
         vm.code.push([bydecodeDef.callFunc, vm.addConstr(callee.name), args.length])
         return null
     } else if (callee.type === "MemberExpression") {
-        const name = callee.object.name
-        let idx = vm.findVar(name)
-        if (idx[0] === -1) {
-            vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(callee.property.name), args.length])
-        } else {
-            vm.code.push([bydecodeDef.memberMethod, idx, vm.addConstr(callee.property.name), args.length])
+        if(callee.object.type==="Identifier"&&callee.property.type==="Identifier"){
+            const name = callee.object.name
+            let idx = vm.findVar(name)
+            if (idx[0] === -1) {
+                vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(callee.property.name), args.length])
+            } else {
+                vm.code.push([bydecodeDef.memberMethod, idx, vm.addConstr(callee.property.name), args.length])
+            }
+        }else{
+            const tag=new __Tag("varLoadTag")
+            loadDefVar(vm,callee.object,tag)
+            vm.code.push(tag)
+            if(callee.property.type==="Identifier"){
+                vm.code.push([bydecodeDef.loadConst, vm.addConstr(callee.property.name)])
+            }else{
+                const proptag=new __Tag("varLoadTag")
+                loadDefVar(vm,callee.object,proptag)
+                vm.code.push(proptag)
+            }
+          
+            vm.code.push([bydecodeDef.stackMemberMethod,  args.length])
         }
+        
         return null
     }
 }
@@ -393,7 +513,9 @@ function forStatement(vm, node) {
     const end = new __Tag("forStatementEnd")
     vm.code.push(loop)
 
-    loadDefVar(vm, node.test)
+    const testTag = new __Tag("ifStatementTest")
+    loadDefVar(vm, node.test,testTag)
+    vm.code.push(testTag)
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to forStatementEnd, refresh position after finish compile']
     vm.code.push(jmpToEnd)
     end.addListener(jmpToEnd)
@@ -404,7 +526,9 @@ function forStatement(vm, node) {
         blockStatement(vm, node, loop, end)
     }
 
-    loadDefVar(vm, node.update)
+    const updateTag = new __Tag("ifStatementUpdate")
+    loadDefVar(vm, node.update,updateTag)
+    vm.code.push(updateTag)
     vm.code.push([bydecodeDef.popStack])
 
     const jmpToStart = [bydecodeDef.jmp, 0, loop, '//jump to forStatementStart, refresh position after finish compile']
@@ -418,8 +542,9 @@ function forStatement(vm, node) {
 
 function ifStatement(vm, node, startTag, endTag) {
     const end = new __Tag("ifStatementEnd")
-
-    loadDefVar(vm, node.test)
+    const test = new __Tag("ifStatementTest")
+    loadDefVar(vm, node.test,test)
+    vm.code.push(test)
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to ifStatementEnd, refresh position after finish compile']
     end.addListener(jmpToEnd)
     vm.code.push(jmpToEnd)
@@ -435,12 +560,15 @@ function ifStatement(vm, node, startTag, endTag) {
 
 function whileStatement(vm, node) {
     const loop = new __Tag("whileStatementStart")
-    vm.code.push(loop)
-    loadDefVar(vm, node.test)
-
+    const test = new __Tag("ifStatementTest")
     const end = new __Tag("whileStatementEnd")
+    vm.code.push(loop)
+    loadDefVar(vm, node.test,test)
+    vm.code.push(test)
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to whileStatementEnd, refresh position after finish compile']
     end.addListener(jmpToEnd)
+    vm.code.push(jmpToEnd)
+
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
@@ -462,12 +590,16 @@ function whileStatement(vm, node) {
 
 function binaryExpression(vm, node) {
     if (node.left) {
-        loadDefVar(vm, node.left)
+        const leftTag=new __Tag("varLoadTag")
+        loadDefVar(vm, node.left,leftTag)
+        vm.code.push(leftTag)
     } else {
         vm.code.push([bydecodeDef.loadNull])
     }
     if (node.right) {
-        loadDefVar(vm, node.right)
+        const rightTag=new __Tag("varLoadTag")
+        loadDefVar(vm, node.right,rightTag)
+        vm.code.push(rightTag)
     } else {
         vm.code.push([bydecodeDef.loadNull])
     }
