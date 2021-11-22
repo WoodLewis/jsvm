@@ -3,11 +3,13 @@ import Runtime from "./Runtime"
 
 class __JSVM {
     constructor() {
-        this.ctx = []
+         /** 字符串常亮库 */
         this.consts = []
         this.vars = []
         this.map = []
         this.code = []
+        /** 需要外部引入的数据 */
+        this.extenals=[]
     }
 
 }
@@ -26,6 +28,17 @@ class __Tag {
         }
     }
 }
+
+__JSVM.prototype.logExtenals = function (name) {
+    for(let i=0;this.extenals[i];++i){
+        if(this.extenals[i]===name){
+            return i;
+        }
+    }
+    this.extenals.push(name)
+    return [-1, -1]
+}
+
 __JSVM.prototype.newBlock = function () {
     this.vars.push([])
     this.map.push(0)
@@ -120,7 +133,7 @@ __JSVM.prototype.compile = function () {
    const codeMethod=[]
    for(let code in bydecodeDef){
        const ins=bydecodeDef[code]
-       codeMethod[ins.val]=ins.apply
+       codeMethod[ins.val]=ins._apply
    }
    runtime.codeMap=codeMethod
    return runtime
@@ -162,7 +175,11 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
         jumpToTag(vm, blockEndTag)
         return
     }
-    const body = node.body
+    let body = node.body
+    //处理单一语句的情况
+    if(!(body instanceof Array)){
+        body=[body]
+    }
     for (let i = 0; body[i]; ++i) {
         const type = body[i].type
         switch (type) {
@@ -174,7 +191,6 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
                 for (let k = 0; vars[k]; ++k) {
                     VariableDeclarator(vm, vars[k])
                 }
-
             } break;
             case "BlockStatement": {
                 const blockStart = new __Tag("nestBlockStart")
@@ -220,6 +236,9 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
             case "WhileStatement":{
                 whileStatement(vm, body[i], blockStartTag, blockEndTag)
             }break;
+            case "DoWhileStatement":{
+                doWhileStatement(vm,body[i],blockStartTag,blockEndTag)
+            }break;
             default: throw new Error("unknow statement "+body[i].type)
         }
     }
@@ -259,7 +278,6 @@ function loadDefVar(vm, node,nextBlockTag) {
         const ps=node.properties
         for(let i=0;ps[i];++i){
             vm.code.push([bydecodeDef.dupStack])
-            // loadDefVar(vm,ps[i].key,nextBlockTag)
             vm.code.push([bydecodeDef.loadConst, vm.addConstr(ps[i].key.name)])
             const psTag=new __Tag("psTag")
             loadDefVar(vm,ps[i].value,psTag)
@@ -291,6 +309,8 @@ function loadDefVar(vm, node,nextBlockTag) {
         return callExpression(vm, node)
     } else if (type === "BinaryExpression") {
         return binaryExpression(vm, node)
+    }else if(type==="UnaryExpression"){
+        return unaryExpression(vm, node)
     } else if (type === "Identifier") {
         return loadIdentifier(vm, node)
     } else if (type == "SequenceExpression") {
@@ -323,7 +343,7 @@ function loadDefVar(vm, node,nextBlockTag) {
             if (idx && idx[0] != -1) {
                 vm.code.push([bydecodeDef.storeVar, idx])
             }else{
-                vm.code.push([bydecodeDef.popStack])
+                vm.code.push([bydecodeDef.storeEnv, vm.addConstr(node.argument.name)])
             }
         } else if (node.argument.type == "MemberExpression") {
             const ag = node.argument
@@ -343,6 +363,7 @@ function loadDefVar(vm, node,nextBlockTag) {
             const name = node.object.name
             let idx = vm.findVar(name)
             if (idx[0] === -1) {
+                vm.logExtenals(name)
                 vm.code.push([bydecodeDef.loadEnv, vm.addConstr(name)])
             } else {
                 vm.code.push([bydecodeDef.loadVar, idx])
@@ -373,17 +394,11 @@ function loadDefVar(vm, node,nextBlockTag) {
             if (idx && idx[0] != -1) {
                 vm.code.push([bydecodeDef.storeVar, idx])
             }else{
-                vm.code.push([bydecodeDef.popStack])
+                vm.code.push([bydecodeDef.storeEnv,vm.addConstr(node.property.name)])
             }
             return idx
         } else if (left.type == "MemberExpression") {
-            const objTag=new __Tag("objectTag")
-            loadDefVar(vm, left.object,objTag)
-            vm.code.push(objTag)
-            const propTag=new __Tag("propTag")
-            loadDefVar(vm, left.property,propTag)
-            vm.code.push(propTag)
-            vm.code.push([bydecodeDef.setProp])
+            loadAssignmentMember(vm,left,true)
             return null
         }
     }else if(type==="LogicalExpression"){
@@ -409,6 +424,25 @@ function loadDefVar(vm, node,nextBlockTag) {
         return conditionalExpression(vm,node,nextBlockTag)
     }
     throw new Error("unknown variable type " + type)
+}
+
+
+function loadAssignmentMember(vm,node,isTop){
+   
+    if(node.object.type==="Identifier"){
+        const objTag=new __Tag("objectTag")
+        loadIdentifier(vm, node.object,objTag)
+        vm.code.push(objTag)
+    }else{
+        loadAssignmentMember(vm,node.object,false)
+    }
+    
+    vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
+    if(isTop){
+        vm.code.push([bydecodeDef.setProp])
+    }else{
+        vm.code.push([bydecodeDef.loadProp])
+    } 
 }
 
 function conditionalExpression(vm,node,retTag){
@@ -440,6 +474,7 @@ function loadIdentifier(vm, node) {
     const name = node.name
     let idx = vm.findVar(name)
     if (idx[0] === -1) {
+        vm.logExtenals(name)
         vm.code.push([bydecodeDef.loadEnv, vm.addConstr(name)])
     } else {
         vm.code.push([bydecodeDef.loadVar, idx])
@@ -455,7 +490,15 @@ function newExpression(vm, node) {
         loadDefVar(vm,args[i],tag)
         vm.code.push(tag)
     }
-    vm.code.push([bydecodeDef.newClassObject, vm.addConstr(callee.name), args.length])
+    const name = callee.name
+    let idx = vm.findVar(name)
+    if (idx[0] === -1) {
+        vm.logExtenals(name)
+        vm.code.push([bydecodeDef.newClassObject, vm.addConstr(name), args.length])
+    } else {
+        vm.code.push([bydecodeDef.newLocalClassObject, idx, args.length])
+    }
+
     return null
 }
 
@@ -468,34 +511,46 @@ function callExpression(vm, node) {
         vm.code.push(tag)
     }
     if (callee.type === "Identifier") {
-        vm.code.push([bydecodeDef.callFunc, vm.addConstr(callee.name), args.length])
+        const name = callee.name
+        let idx = vm.findVar(name)
+        if (idx[0] === -1) {
+            vm.logExtenals(name)
+            vm.code.push([bydecodeDef.callFunc, vm.addConstr(name), args.length])
+        } else {
+            vm.code.push([bydecodeDef.callLocalFunc, idx, args.length])
+        }
         return null
     } else if (callee.type === "MemberExpression") {
-        if(callee.object.type==="Identifier"&&callee.property.type==="Identifier"){
-            const name = callee.object.name
-            let idx = vm.findVar(name)
-            if (idx[0] === -1) {
-                vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(callee.property.name), args.length])
-            } else {
-                vm.code.push([bydecodeDef.memberMethod, idx, vm.addConstr(callee.property.name), args.length])
-            }
-        }else{
-            const tag=new __Tag("varLoadTag")
-            loadDefVar(vm,callee.object,tag)
-            vm.code.push(tag)
-            if(callee.property.type==="Identifier"){
-                vm.code.push([bydecodeDef.loadConst, vm.addConstr(callee.property.name)])
-            }else{
-                const proptag=new __Tag("varLoadTag")
-                loadDefVar(vm,callee.object,proptag)
-                vm.code.push(proptag)
-            }
-          
-            vm.code.push([bydecodeDef.stackMemberMethod,  args.length])
-        }
-        
+        loadCallExpressionMember(vm,callee,args,true)
         return null
     }
+}
+
+
+function loadCallExpressionMember(vm,node,args,isTop){
+    if(node.object.type==="Identifier"){
+        if(isTop){
+            const name = node.object.name
+            let idx = vm.findVar(name)
+            if (idx[0] === -1) {
+                vm.logExtenals(name)
+                vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(node.property.name), args.length])
+            } else {
+                vm.code.push([bydecodeDef.memberMethod, idx, vm.addConstr(node.property.name), args.length])
+            }
+            return ;
+        }else{
+            loadIdentifier(vm,node.object)
+        }
+    }else{
+        loadCallExpressionMember(vm,node.object,false)
+    }
+    vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
+    if(isTop){
+        vm.code.push([bydecodeDef.stackMemberMethod,args.length])
+    }else{
+        vm.code.push([bydecodeDef.loadProp])
+    } 
 }
 
 function forStatement(vm, node) {
@@ -507,33 +562,49 @@ function forStatement(vm, node) {
             for(let k=0;es[k];++k){
                 VariableDeclarator(vm,es[k])
             }
+        }else{
+            const tag=new __Tag("varLoadTag")
+            loadDefVar(vm,node.init,tag)
+            vm.code.push(tag)
         }
     }
     const loop = new __Tag("forStatementStart")
     const end = new __Tag("forStatementEnd")
     vm.code.push(loop)
 
-    const testTag = new __Tag("ifStatementTest")
+    const testTag = new __Tag("forStatementTest")
     loadDefVar(vm, node.test,testTag)
     vm.code.push(testTag)
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to forStatementEnd, refresh position after finish compile']
     vm.code.push(jmpToEnd)
     end.addListener(jmpToEnd)
 
+
+    const blockGoToStartTag=new __Tag("blockToStart")
+    const blockGoToEndTag=new __Tag("blockToStart")
+    vm.newBlock()
+    vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
-        blockStatement(vm, node.body, loop, end)
+        blockStatement(vm, node.body, blockGoToStartTag, blockGoToEndTag)
     }else{
-        blockStatement(vm, node, loop, end)
+        blockStatement(vm, node, blockGoToStartTag, blockGoToEndTag)
     }
 
-    const updateTag = new __Tag("ifStatementUpdate")
+    vm.code.push(blockGoToStartTag)
+    vm.code.push([bydecodeDef.delStack])
+    vm.qiutBlock()
+
+    const updateTag = new __Tag("forStatementUpdate")
     loadDefVar(vm, node.update,updateTag)
     vm.code.push(updateTag)
     vm.code.push([bydecodeDef.popStack])
 
-    const jmpToStart = [bydecodeDef.jmp, 0, loop, '//jump to forStatementStart, refresh position after finish compile']
-    vm.code.push(jmpToStart)
-    loop.addListener(jmpToStart)
+    const jmpToOutLoop = [bydecodeDef.jmp, 0, loop, '//jump to forStatementStart, refresh position after finish compile']
+    vm.code.push(jmpToOutLoop)
+    loop.addListener(jmpToOutLoop)
+
+    vm.code.push(blockGoToEndTag)
+    vm.code.push([bydecodeDef.delStack])
 
     vm.code.push(end)
     vm.code.push([bydecodeDef.delStack])
@@ -542,29 +613,54 @@ function forStatement(vm, node) {
 
 function ifStatement(vm, node, startTag, endTag) {
     const end = new __Tag("ifStatementEnd")
+    
     const test = new __Tag("ifStatementTest")
     loadDefVar(vm, node.test,test)
     vm.code.push(test)
+
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to ifStatementEnd, refresh position after finish compile']
     end.addListener(jmpToEnd)
     vm.code.push(jmpToEnd)
 
+    const ifNestStartTag=new __Tag("ifNestStartTag")
+    const ifNestEndTag=new __Tag("ifNestEndTag")
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
-    blockStatement(vm, node.consequent, startTag, endTag)
+    blockStatement(vm, node.consequent, ifNestStartTag, ifNestEndTag)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
+
+    const goToEnd = [bydecodeDef.jmp, 0, end, '//jump to ifStatementEnd, refresh position after finish compile']
+    end.addListener(goToEnd)
+    vm.code.push(goToEnd)
+
+    vm.code.push(ifNestStartTag)
+    vm.code.push([bydecodeDef.delStack])
+    const jmpToOutterStart = [bydecodeDef.jmp, 0, startTag, '//jump to ifStatementOutterStart, refresh position after finish compile']
+    startTag.addListener(jmpToOutterStart)
+    vm.code.push(jmpToOutterStart)
+
+    vm.code.push(ifNestEndTag)
+    vm.code.push([bydecodeDef.delStack])
+    const jmpToOutterEnd = [bydecodeDef.jmp, 0, endTag, '//jump to ifStatementOutterEnd, refresh position after finish compile']
+    endTag.addListener(jmpToOutterEnd)
+    vm.code.push(jmpToOutterEnd)
     
     vm.code.push(end)
 }
 
 function whileStatement(vm, node) {
-    const loop = new __Tag("whileStatementStart")
-    const test = new __Tag("ifStatementTest")
+    const start = new __Tag("whileStatementStart")
+    const loop = new __Tag("whileStatementLoop")
+    const clean = new __Tag("whileStatementclean")
     const end = new __Tag("whileStatementEnd")
-    vm.code.push(loop)
+    
+    vm.code.push(start)
+
+    const test = new __Tag("whileStatementTest")
     loadDefVar(vm, node.test,test)
     vm.code.push(test)
+
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to whileStatementEnd, refresh position after finish compile']
     end.addListener(jmpToEnd)
     vm.code.push(jmpToEnd)
@@ -572,21 +668,62 @@ function whileStatement(vm, node) {
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
-        blockStatement(vm, node.body, loop, end)
+        blockStatement(vm, node.body, loop, clean)
     }else{
-        blockStatement(vm, node, loop, end)
+        blockStatement(vm, node, loop, clean)
     }
-    
+    vm.code.push(loop)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
 
-    const jmpToStart = [bydecodeDef.jmp, 0, loop, '//jump to whileStatementStart, refresh position after finish compile']
+    const jmpToStart = [bydecodeDef.jmp, 0, start, '//jump to whileStatementStart, refresh position after finish compile']
     vm.code.push(jmpToStart)
-    loop.addListener(jmpToStart)
+    start.addListener(jmpToStart)
 
+    vm.code.push(clean)
+    vm.code.push([bydecodeDef.delStack])
     vm.code.push(end)
+
 }
 
+
+function doWhileStatement(vm, node) {
+    const start = new __Tag("doWhileStatementStart")
+    const loop = new __Tag("doWhileStatementLoop")
+    const clean = new __Tag("whileStatementClean")
+    
+    vm.code.push(start)
+
+    vm.newBlock()
+    vm.code.push([bydecodeDef.newStack])
+    if(node.body.type=="BlockStatement"){
+        blockStatement(vm, node.body, loop, clean)
+    }else{
+        blockStatement(vm, node, loop, clean)
+    }
+
+    vm.code.push(loop)
+    vm.code.push([bydecodeDef.delStack])
+    vm.qiutBlock()
+
+    const test = new __Tag("doWhileStatementTest")
+    loadDefVar(vm, node.test,test)
+    vm.code.push(test)
+
+    const jmpToStart = [bydecodeDef.jmpNotZero, 0, start, '//jump to doWhileStatementStart, refresh position after finish compile']
+    vm.code.push(jmpToStart)
+    start.addListener(jmpToStart)
+
+    const end = new __Tag("whileStatementEnd")
+    const jmpToEnd = [bydecodeDef.jmp, 0,  end, '//jump to doWhileStatementEnd, refresh position after finish compile']
+    vm.code.push(jmpToEnd)
+    end.addListener(jmpToEnd)
+
+    vm.code.push(clean)
+    vm.code.push([bydecodeDef.delStack])
+    vm.code.push(end)
+
+}
 
 function binaryExpression(vm, node) {
     if (node.left) {
@@ -619,7 +756,29 @@ function binaryExpression(vm, node) {
         case '>=': vm.code.push([bydecodeDef.gte]); break;
         case '==': vm.code.push([bydecodeDef.eq]); break;
         case '===': vm.code.push([bydecodeDef.eq]); break;
-        default: throw new Error("unkonow operator " + node.operator);
+        default: throw new Error("unkonow binaryExpression operator " + node.operator);
+    }
+    return null
+}
+
+function unaryExpression(vm,node){
+   
+
+    switch (node.operator) {
+        case '!': {
+            const argumentTag=new __Tag("argumentTag")
+            loadDefVar(vm, node.argument,argumentTag)
+            vm.code.push(argumentTag)
+            vm.code.push([bydecodeDef.not]);
+        } break;
+        case '-': {
+            vm.code.push([bydecodeDef.loadValue,0]);
+            const argumentTag=new __Tag("argumentTag")
+            loadDefVar(vm, node.argument,argumentTag)
+            vm.code.push(argumentTag)
+            vm.code.push([bydecodeDef.min]);
+        } break;
+        default: throw new Error("unkonow unaryExpression operator " + node.operator);
     }
     return null
 }

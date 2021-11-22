@@ -1,7 +1,7 @@
 function Runtime(){
     this.stack=[]
     this.stackArray=[]
-    this.pointer=[]
+    this.pointer=0
     this.temp=[]
     this.codeOffset=0
     this.constants=[]
@@ -28,6 +28,14 @@ Runtime.prototype.envObject=function(name){
         return window[name]
     }
     return this.env[name]
+}
+
+Runtime.prototype.pushBackEnv=function(name,val){
+    if(this.env[name]===undefined){
+        window[name]=val
+    }
+    this.env[name]=val
+    return val
 }
 
 Runtime.prototype.newStack=function(){
@@ -99,5 +107,20 @@ Runtime.prototype.goto=function(index){
 Runtime.prototype.jmp=function(){
     this.goto(this.code[this.pointer+1])
 }
+
+Runtime.prototype.toString=function(){
+    let code=this.code
+    let constants=this.constants.map(v=>'"'+v.replaceAll('"','\\"')+'"').join(",")
+    let codeMap=this.codeMap.toString().replace(/([a-zA-Z0-9;{}])[\n\s]+/,"$1;")
+    let str=`function Runtime(){
+        this.stack=[],this.stackArray=[], this.pointer=0,this.temp=[]
+        this.codeOffset=0,this.constants=[${constants}]
+        this.code=[${code}],this.env={},this.retVal=null,this.codeMap=[${codeMap}]
+    }`
+    
+    
+    return str
+}
+
 
 export default Runtime
