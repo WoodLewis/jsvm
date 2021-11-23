@@ -203,11 +203,14 @@ export default {
         name: 'newClassObject',
         val: 14,
         _apply:function(runtime){
-            const index=runtime.nextCodeVal()
-            const className=runtime.loadConstant(index)
-            const args=runtime.nextCodeNVal(2)
+            const index=runtime.nextCodeVal(),
+                className=runtime.loadConstant(index),
+                args=runtime.nextCodeNVal(2)
             const array=runtime.popStackTopN(args)
-            runtime.pushStack(new (runtime.envObject(className))(...array))
+            // const target=Object.create(classObj.prototype)
+            // classObj.apply(target,array)
+            runtime.pushStack(Reflect.construct(runtime.envObject(className),array))
+            // runtime.pushStack(new (runtime.envObject(className))(...array))
             runtime.next(3)
         }
     },
@@ -224,7 +227,9 @@ export default {
             const className=runtime.loadConstant(index)
             const args=runtime.nextCodeNVal(2)
             const array=runtime.popStackTopN(args)
-            runtime.pushStack(runtime.envObject(className)(...array))
+            
+            runtime.pushStack(runtime.envObject(className).apply(window,array))
+            // runtime.pushStack(runtime.envObject(className)(...array))
             runtime.next(3)
         }
     },
@@ -238,11 +243,13 @@ export default {
         val: 16,
         _apply:function(runtime){
             const val=runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
-            const index=runtime.nextCodeNVal(3)
-            const methodName=runtime.loadConstant(index)
-            const args=runtime.nextCodeNVal(4)
+            const index=runtime.nextCodeNVal(3), 
+                methodName=runtime.loadConstant(index),
+                args=runtime.nextCodeNVal(4)
             const array=runtime.popStackTopN(args)
-            runtime.pushStack(val[methodName](...array))
+
+            runtime.pushStack(val[methodName].apply(val,array))
+            // runtime.pushStack(val[methodName](...array))
             runtime.next(5)
         }
     },
@@ -255,7 +262,7 @@ export default {
         name: 'popStack',
         val: 17,
         _apply:function(runtime){
-            runtime.popStack()
+            runtime.popStackTop()
             runtime.next(1)
         }
     },
@@ -353,7 +360,9 @@ export default {
             const methodName=runtime.loadConstant(runtime.nextCodeNVal(2))
             const args=runtime.nextCodeNVal(3)
             const array=runtime.popStackTopN(args)
-            runtime.pushStack(runtime.envObject(objName)[methodName](...array))
+            const target=runtime.envObject(objName)
+            runtime.pushStack(target[methodName].apply(target,array))
+            // runtime.pushStack(runtime.envObject(objName)[methodName](...array))
             runtime.next(4)
         }
     },
@@ -681,7 +690,9 @@ export default {
             const methodName=runtime.popStackTop()
             const obj=runtime.popStackTop()
             const array=runtime.popStackTopN(args)
-            runtime.pushStack(obj[methodName](...array))
+
+            runtime.pushStack(obj[methodName].apply(obj,array))
+            // runtime.pushStack(obj[methodName](...array))
             runtime.next(2)
         }
     },

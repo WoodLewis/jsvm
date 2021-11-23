@@ -177,7 +177,9 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
     }
     let body = node.body
     //处理单一语句的情况
-    if(!(body instanceof Array)){
+    if(!body){
+        body=[node]
+    }else  if(!(body instanceof Array)){
         body=[body]
     }
     for (let i = 0; body[i]; ++i) {
@@ -238,6 +240,9 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
             }break;
             case "DoWhileStatement":{
                 doWhileStatement(vm,body[i],blockStartTag,blockEndTag)
+            }break;
+            case "SwitchStatement" :{
+                switchStatement(vm,body[i],blockStartTag,blockEndTag)
             }break;
             default: throw new Error("unknow statement "+body[i].type)
         }
@@ -528,7 +533,13 @@ function callExpression(vm, node) {
 
 
 function loadCallExpressionMember(vm,node,args,isTop){
-    if(node.object.type==="Identifier"){
+    if(node.type==="NewExpression"){
+        newExpression(vm,node)
+        return ;
+    }else if(node.type==="CallExpression"){
+        callExpression(vm,node)
+        return;
+    }else if(node.object.type==="Identifier"){
         if(isTop){
             const name = node.object.name
             let idx = vm.findVar(name)
@@ -685,6 +696,88 @@ function whileStatement(vm, node) {
     vm.code.push(end)
 
 }
+
+
+function switchStatement(vm, node) {
+    
+    const discriminant = new __Tag("switchStatementdiscriminant")
+    loadDefVar(vm, node.discriminant,discriminant)
+    vm.code.push(discriminant)
+    //重新排序下case，把default放到最后匹配
+    const cases=node.cases
+    const sortCaseArray=[]
+    let defaultCase=null
+    const caseTagArr=[]
+    for(let i=0;cases[i];++i){
+        if(cases[i].test){
+            sortCaseArray.push(cases[i])
+        }else{
+            defaultCase=cases[i]
+        }
+    }
+    if(defaultCase!=null){
+        sortCaseArray.push(defaultCase)
+    }
+
+    for(let i=0;sortCaseArray[i];++i){
+        caseTagArr[i]=new __Tag("switchStatementTag"+i)
+    }
+
+    for(let i=0;sortCaseArray[i];++i){
+        if(sortCaseArray[i].test){
+            vm.code.push([bydecodeDef.dupStack])
+    
+            const test = new __Tag("switchStatementCaseTest")
+            loadDefVar(vm, sortCaseArray[i].test,test)
+            vm.code.push(test)
+
+            const clearStack=new __Tag("clearStack")
+            const nextJudge=new __Tag("nextJudge")
+
+            const jmpToClear = [bydecodeDef.eqJmp, 0, clearStack, '//jump to switchStatementCaseTest, refresh position after finish compile']
+            vm.code.push(jmpToClear)
+            clearStack.addListener(jmpToClear)
+            
+            jumpToTag(vm,nextJudge)
+
+            vm.code.push(clearStack)
+            vm.code.push([bydecodeDef.popStack])
+            jumpToTag(vm,caseTagArr[i])
+
+            vm.code.push(nextJudge)
+        }else{
+            vm.code.push([bydecodeDef.popStack])
+            const jmpToNext = [bydecodeDef.jmp, 0, caseTagArr[i], '//jump to switchStatementCaseTest, refresh position after finish compile']
+            vm.code.push(jmpToNext)
+            caseTagArr[i].addListener(jmpToNext)
+        }
+    }
+
+  
+    const clean = new __Tag("switchStatementCaseClean")
+
+    const end=new __Tag("switchStatementTagEnd")
+    for(let i=0;sortCaseArray[i];++i){
+        vm.code.push(caseTagArr[i])
+        const consequent=sortCaseArray[i].consequent
+        for(let k=0;consequent[k];++k){
+            if(consequent[k].type!=="BreakStatement"){
+                vm.newBlock()
+                vm.code.push([bydecodeDef.newStack])
+                blockStatement(vm,consequent[k],null,clean)
+                vm.code.push([bydecodeDef.delStack])
+                vm.qiutBlock()
+            }else{
+                jumpToTag(vm,end)
+            } 
+        }
+    }
+    jumpToTag(vm,end)
+    vm.code.push(clean)
+    vm.code.push([bydecodeDef.delStack])
+    vm.code.push(end)
+}
+
 
 
 function doWhileStatement(vm, node) {

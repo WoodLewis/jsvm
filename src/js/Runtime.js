@@ -108,17 +108,56 @@ Runtime.prototype.jmp=function(){
     this.goto(this.code[this.pointer+1])
 }
 
+
+function replaceBlank(str){
+    return  str.replace(/\/\/[^\n]*\n/g,"")
+    .replace(/[\n\s]*\{[\s\r\n]*([a-zA-Z0-9_$])/g,"{$1")
+    .replace(/([a-zA-Z0-9_$;\]])[\s\r\n]*\}[\n\s]*/g,"$1}")
+    .replace(/\s+([+\-*/%=><])\s+/g,"$1")
+    .replace(/\s+([=!><]+=)\s+/g,"$1")
+    .replace(/([a-zA-Z0-9_;])(\s+)?[\n\r]+(\s+)?([a-zA-Z0-9_;])/g,"$1;$4")
+    .replace(/;；+/g,";")
+    .replace(/;}/g,"}")
+}
+
 Runtime.prototype.toString=function(){
+    const prototypes=Object.getOwnPropertyNames(Runtime.prototype)
+    const arr=[]
+    for(let i=0;prototypes[i];++i){
+        switch(prototypes[i]){
+            case "constructor":
+            case "toString":
+            case "run":    
+                break;
+            default: arr.push(prototypes[i]);break;   
+        }
+    }
+    const replaceMethods=function(str){
+        for(let i=0;arr[i];++i){
+            str=str
+                .replaceAll("this."+arr[i]+"(","this.__"+i+"(")
+                .replaceAll("runtime."+arr[i]+"(","runtime.__"+i+"(")
+        }
+        return str
+    }
     let code=this.code
     let constants=this.constants.map(v=>'"'+v.replaceAll('"','\\"')+'"').join(",")
-    let codeMap=this.codeMap.toString().replace(/([a-zA-Z0-9;{}])[\n\s]+/,"$1;")
+    let codeMap=this.codeMap.toString().replace(/function\s+_apply\(runtime\)/g,"function(runtime)")
+
+    codeMap=replaceMethods(replaceBlank(codeMap))
+    let runtimeMethods="";
+    for(let i=0;arr[i];++i){
+        runtimeMethods+=";Runtime.prototype.__"+i+"="+replaceMethods(replaceBlank(Runtime.prototype[arr[i]].toString()))
+    }
+    runtimeMethods+=";Runtime.prototype.run="+replaceBlank(Runtime.prototype.run.toString())
     let str=`function Runtime(){
         this.stack=[],this.stackArray=[], this.pointer=0,this.temp=[]
         this.codeOffset=0,this.constants=[${constants}]
         this.code=[${code}],this.env={},this.retVal=null,this.codeMap=[${codeMap}]
-    }`
-    
-    
+    }${runtimeMethods}
+    new Runtime().run()
+    `
+   
     return str
 }
 
