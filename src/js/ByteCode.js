@@ -8,6 +8,7 @@ class __JSVM {
         this.vars = []
         this.map = []
         this.code = []
+        this.catch= []
         /** 需要外部引入的数据 */
         this.extenals=[]
     }
@@ -88,15 +89,32 @@ __JSVM.prototype.findVar = function (name) {
 }
 
 __JSVM.prototype.compile = function () {
-   const data=[]
+   let data=[]
    const codePositonTag=[]
    const codeMap=[]
+   const constantsLocation=[]
+   const constantsLocationTag=[]
+   //简单考虑下安全问题，将常量字符串织入代码中
+   const constantsMap=[]
+   for(let i=0;i<this.consts.length;++i){
+        constantsLocationTag[i]=[]
+        let insert=parseInt(Math.random()*(this.code.length-1))
+        if(insert<=0){
+            insert=1;
+        }
+        if(!constantsMap[insert]){
+            constantsMap[insert]=[]
+        }
+        constantsMap[insert].push(i)
+   }
+
    for(let i=0;this.code[i];++i){
        codeMap[i]=data.length
        const ins=this.code[i]
        data.push(ins[0].val)
        //记录跳转代码位置
        switch(ins[0].val){
+           //记录跳转代码地址变更
             case bydecodeDef.jmp.val:
             case bydecodeDef.jmpNotZero.val:
             case bydecodeDef.jmpZero.val:
@@ -106,7 +124,22 @@ __JSVM.prototype.compile = function () {
                     codePositonTag[ins[1]]=[]
                 }
                 codePositonTag[ins[1]].push(data.length)
-            }break;     
+            }break;
+            //记录字符串加载位置变更
+            case bydecodeDef.loadConst.val:
+            case bydecodeDef.loadEnv.val:   
+            case bydecodeDef.newClassObject.val: 
+            case bydecodeDef.callFunc.val: 
+            case bydecodeDef.storeEnv.val:
+                constantsLocationTag[ins[1]].push(data.length)
+                break;
+            case bydecodeDef.memberMethod.val:
+                constantsLocationTag[ins[2]].push(data.length+2)
+                break;      
+            case bydecodeDef.envMemberMethod.val:{
+                constantsLocationTag[ins[1]].push(data.length)
+                constantsLocationTag[ins[2]].push(data.length+1)
+                }break;
         }
        for(let j=1;j<ins.length;++j){
            if(typeof ins[j]==="number"){
@@ -119,6 +152,16 @@ __JSVM.prototype.compile = function () {
                break;//跳过解释代码
            }
        }
+       if(constantsMap[i]){
+        const inserts=constantsMap[i]
+        for(let j=0;j<inserts.length;++j){
+            const insertStr=this.consts[inserts[j]]
+            const strArray=stringToBytes(insertStr)
+            const jmp=([bydecodeDef.jmp.val,data.length+2+strArray.length]).concat(strArray)
+            constantsLocation[inserts[j]]=data.length+2
+            data=data.concat(jmp);
+        }
+       }
    }
    //更新代码跳转位置
    for(let p in codePositonTag){
@@ -127,6 +170,19 @@ __JSVM.prototype.compile = function () {
             data[v]=codeMap[p]
        })
    }
+   //更新异常跳转
+   const catchArray=[]
+   for(let i=0;i<this.catch.length;++i){
+       const block=this.catch[i]
+       catchArray[i]=[codeMap[block[0]],codeMap[block[1]],codeMap[block[2]]]
+   }
+   //更新字符串加载位置变更
+   for(let p in constantsLocationTag){
+        const update=constantsLocationTag[p]
+        update.forEach(v=>{
+            data[v]=constantsLocation[p]
+        })
+    }
    const runtime=new Runtime()
    runtime.constants=this.consts
    runtime.code=data
@@ -136,17 +192,28 @@ __JSVM.prototype.compile = function () {
        codeMethod[ins.val]=ins._apply
    }
    runtime.codeMap=codeMethod
+   runtime.errorMap=catchArray.sort((a,b)=>b[0]-a[0])
    return runtime
+}
+
+function stringToBytes(str){
+    const array=[]
+    for(let i=0;i<str.length;++i){
+        //来一点简单的加密
+        array.push(str.charCodeAt(i)^i)
+    }
+    return array
 }
 
 function accept(node) {
     const vm = new __JSVM();
+    const startPosition=0
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     blockStatement(vm, node)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
-
+    loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
     const code=[]
     //刷新标记点
     for (let i = 0;vm.code[i];++i) {
@@ -197,30 +264,30 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
             case "BlockStatement": {
                 const blockStart = new __Tag("nestBlockStart")
                 const blockEnd = new __Tag("nestBlockStart")
+                const startPosition=checkCurrentIndex(vm)
                 vm.newBlock()
                 vm.code.push([bydecodeDef.newStack])
-                blockStatement(vm, body[i], blockStart, blockEnd)
-
-                const nextCode = new __Tag("GoToNextCode")
-                vm.code.push([bydecodeDef.delStack])
-                const jumpNextCode = [bydecodeDef.jmp, 0, nextCode, '//jump to blockNextCode, refresh position after finish compile']
-                nextCode.addListener(jumpNextCode)
-                vm.code.push(jumpNextCode)
-
-                vm.code.push(blockStart)
-                vm.code.push([bydecodeDef.delStack])
-                const jumpParentStart = [bydecodeDef.jmp, 0, blockStartTag, '//jump to parentStart, refresh position after finish compile']
-                blockStartTag.addListener(jumpParentStart)
-                vm.code.push(jumpParentStart)
-
-                vm.code.push(blockEnd)
-                vm.code.push([bydecodeDef.delStack])
-                const jumpParentEnd = [bydecodeDef.jmp, 0, blockEndTag, '//jump to parentStart, refresh position after finish compile']
-                blockEndTag.addListener(jumpParentEnd)
-                vm.code.push(jumpParentEnd)
-
-                vm.code.push(nextCode)
+                blockStatement(vm, body[i], blockStartTag?blockStart:blockStartTag, blockEndTag?blockEnd:blockEndTag)
+                vm.code.push([bydecodeDef.delStack])     
                 vm.qiutBlock()
+                loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
+
+                if(blockStartTag||blockEndTag){
+                    const nextCode = new __Tag("GoToNextCode")
+                    jumpToTag(vm,nextCode)
+                    if(blockStartTag){
+                        vm.code.push(blockStart)
+                        vm.code.push([bydecodeDef.delStack])
+                        jumpToTag(vm,blockStartTag)
+                    }
+                    if(blockEndTag){
+                        vm.code.push(blockEnd)
+                        vm.code.push([bydecodeDef.delStack])
+                        jumpToTag(vm,blockEndTag)
+                    }
+                    vm.code.push(nextCode)
+                }
+                
             } break;
             case "ExpressionStatement": {
                 const expression = body[i].expression
@@ -243,6 +310,15 @@ function blockStatement(vm, node, blockStartTag, blockEndTag) {
             }break;
             case "SwitchStatement" :{
                 switchStatement(vm,body[i],blockStartTag,blockEndTag)
+            }break;
+            case "TryStatement":{
+                tryStatement(vm,body[i],blockStartTag,blockEndTag)
+            }break;
+            case "ThrowStatement":{
+                const loadTag=new __Tag("errorLloadTag")
+                loadDefVar(vm,body[i].argument,loadTag)
+                vm.code.push([bydecodeDef.setError])
+                vm.code.push([bydecodeDef.throwError])
             }break;
             default: throw new Error("unknow statement "+body[i].type)
         }
@@ -395,11 +471,12 @@ function loadDefVar(vm, node,nextBlockTag) {
         vm.code.push(rightTag)
         const left=node.left
         if (left.type == "Identifier") {
-            const idx =  loadIdentifier(vm, left)
-            if (idx && idx[0] != -1) {
-                vm.code.push([bydecodeDef.storeVar, idx])
-            }else{
+            const name = left.name
+            let idx = vm.findVar(name)
+            if (idx[0] === -1) {
                 vm.code.push([bydecodeDef.storeEnv,vm.addConstr(node.property.name)])
+            } else {
+                vm.code.push([bydecodeDef.storeVar, idx])
             }
             return idx
         } else if (left.type == "MemberExpression") {
@@ -565,6 +642,7 @@ function loadCallExpressionMember(vm,node,args,isTop){
 }
 
 function forStatement(vm, node) {
+    const startPosition=checkCurrentIndex(vm)
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if (node.init) {
@@ -593,6 +671,7 @@ function forStatement(vm, node) {
 
     const blockGoToStartTag=new __Tag("blockToStart")
     const blockGoToEndTag=new __Tag("blockToStart")
+    const nestStartPosition=checkCurrentIndex(vm)
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
@@ -604,6 +683,7 @@ function forStatement(vm, node) {
     vm.code.push(blockGoToStartTag)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
+    loadErrorBlockClean(vm,nestStartPosition,checkCurrentIndex(vm))
 
     const updateTag = new __Tag("forStatementUpdate")
     loadDefVar(vm, node.update,updateTag)
@@ -620,6 +700,7 @@ function forStatement(vm, node) {
     vm.code.push(end)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
+    loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
 }
 
 function ifStatement(vm, node, startTag, endTag) {
@@ -635,6 +716,7 @@ function ifStatement(vm, node, startTag, endTag) {
 
     const ifNestStartTag=new __Tag("ifNestStartTag")
     const ifNestEndTag=new __Tag("ifNestEndTag")
+    const startPosition=checkCurrentIndex(vm)
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     blockStatement(vm, node.consequent, ifNestStartTag, ifNestEndTag)
@@ -656,8 +738,11 @@ function ifStatement(vm, node, startTag, endTag) {
     const jmpToOutterEnd = [bydecodeDef.jmp, 0, endTag, '//jump to ifStatementOutterEnd, refresh position after finish compile']
     endTag.addListener(jmpToOutterEnd)
     vm.code.push(jmpToOutterEnd)
+
+    loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
     
     vm.code.push(end)
+    
 }
 
 function whileStatement(vm, node) {
@@ -675,7 +760,7 @@ function whileStatement(vm, node) {
     const jmpToEnd = [bydecodeDef.jmpZero, 0, end, '//jump to whileStatementEnd, refresh position after finish compile']
     end.addListener(jmpToEnd)
     vm.code.push(jmpToEnd)
-
+    const startPosition=checkCurrentIndex(vm)
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
@@ -693,10 +778,137 @@ function whileStatement(vm, node) {
 
     vm.code.push(clean)
     vm.code.push([bydecodeDef.delStack])
-    vm.code.push(end)
 
+    loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
+    vm.code.push(end)
 }
 
+function checkCurrentIndex(vm){
+    let cc=0;
+    for (let i = 0;vm.code[i];++i) {
+        const bc=vm.code[i]
+        if(bc instanceof Array){
+            cc++
+        }
+    }
+    return cc;
+}
+
+function tryStatement(vm, node, startTag, endTag){
+
+    const loop = new __Tag("tryStatementLoop")
+    const clean = new __Tag("tryStatementclean")
+
+    const pureLoop = new __Tag("tryStatementLoop")
+    const pureClean = new __Tag("tryStatementclean")
+
+    const end = new __Tag("tryStatementEnd")
+
+    const loadFinal=function(){
+        if(node.finalizer){
+            const finalizer=node.finalizer
+            const finallyBlockStartPosition=checkCurrentIndex(vm)
+            vm.newBlock()
+            vm.code.push([bydecodeDef.newStack])
+        
+            if(finalizer.body.type=="BlockStatement"){
+                blockStatement(vm, finalizer.body,startTag? pureLoop:startTag,endTag?pureClean:endTag)
+            }else{
+                blockStatement(vm, finalizer,startTag? pureLoop:startTag,endTag?pureClean:endTag)
+            }
+            vm.code.push([bydecodeDef.delStack])
+            vm.qiutBlock()
+            loadErrorBlockClean(vm,finallyBlockStartPosition,checkCurrentIndex(vm))
+        }
+    }
+    //正常快递此处开始
+    const tryBlockStartPosition=checkCurrentIndex(vm)
+    //加载正常块
+    vm.code.push([bydecodeDef.newStack])
+    vm.newBlock()
+    blockStatement(vm, node.block,startTag? loop:startTag,endTag?clean:endTag)
+    vm.qiutBlock()
+    vm.code.push([bydecodeDef.delStack])
+    //正常快递此处结束
+    const tryEndPosition=checkCurrentIndex(vm)
+    const next=new __Tag("tryStatementNext")
+    jumpToTag(vm,next)
+    //异常处理流程
+    vm.catch.push([tryBlockStartPosition,tryEndPosition,checkCurrentIndex(vm)])
+    if(node.handler){
+      
+        vm.code.push([bydecodeDef.delStack])//处理异常前需要先把正常代码块卸载
+        const handler=node.handler
+
+        const catchBlockStartPosition=checkCurrentIndex(vm)
+        vm.newBlock()
+        vm.code.push([bydecodeDef.newStack])
+        const errorName=handler.param.name
+        const curStack = vm.vars[vm.vars.length - 1]
+        let idx = curStack[errorName]
+        if (!idx) {
+            idx = vm.addVar(errorName)
+        }
+        vm.code.push([bydecodeDef.loadError])
+        vm.code.push([bydecodeDef.storeVar,idx])
+
+        if(handler.body.type=="BlockStatement"){
+            blockStatement(vm, handler.body,startTag? loop:startTag,endTag?clean:endTag)
+        }else{
+            blockStatement(vm, handler,startTag? loop:startTag,endTag?clean:endTag)
+        }
+
+        vm.code.push([bydecodeDef.delStack])
+        vm.qiutBlock()
+
+        const catchBlockEndPosition=checkCurrentIndex(vm)
+        jumpToTag(vm,next)
+        
+        vm.catch.push([catchBlockStartPosition,catchBlockEndPosition,checkCurrentIndex(vm)])
+        vm.code.push([bydecodeDef.delStack])//处理异常前需要先把正常代码块卸载
+        loadFinal()
+        vm.code.push([bydecodeDef.throwError])
+    }else{
+        vm.code.push([bydecodeDef.delStack])//处理异常前需要先把正常代码块卸载
+        loadFinal()
+        vm.code.push([bydecodeDef.throwError])
+    }
+    
+    if(startTag||endTag){
+        if(startTag){
+            vm.code.push(loop)
+            vm.code.push([bydecodeDef.delStack])//处理continue前需要先把正常代码块卸载
+            loadFinal()
+            jumpToTag(vm,startTag)
+            vm.code.push(pureLoop)
+            vm.code.push([bydecodeDef.delStack])//处理continue前需要先把正常代码块卸载
+            jumpToTag(vm,startTag)
+        }
+        if(endTag){
+            vm.code.push(clean)
+            vm.code.push([bydecodeDef.delStack])//处理break前需要先把正常代码块卸载
+            loadFinal()
+            jumpToTag(vm,endTag)
+            vm.code.push(pureClean)
+            vm.code.push([bydecodeDef.delStack])//处理break前需要先把正常代码块卸载
+            jumpToTag(vm,endTag)
+        }
+    }
+    vm.code.push(next)
+    loadFinal()
+    vm.code.push(end)
+}
+
+
+function loadErrorBlockClean(vm,start,end){
+    const jmp=new __Tag("normalJump")
+    jumpToTag(vm,jmp)//这里只允许跳转进来，其他时候要跳过
+    const throwPosition=checkCurrentIndex(vm)
+    vm.code.push([bydecodeDef.delStack])//处理异常前需要先把正常代码块卸载
+    vm.code.push([bydecodeDef.throwError])
+    vm.catch.push([start,end,throwPosition])
+    vm.code.push(jmp)
+}
 
 function switchStatement(vm, node) {
     
@@ -752,7 +964,6 @@ function switchStatement(vm, node) {
             caseTagArr[i].addListener(jmpToNext)
         }
     }
-
   
     const clean = new __Tag("switchStatementCaseClean")
 
@@ -762,11 +973,13 @@ function switchStatement(vm, node) {
         const consequent=sortCaseArray[i].consequent
         for(let k=0;consequent[k];++k){
             if(consequent[k].type!=="BreakStatement"){
+                const startPosition=checkCurrentIndex(vm)
                 vm.newBlock()
                 vm.code.push([bydecodeDef.newStack])
                 blockStatement(vm,consequent[k],null,clean)
                 vm.code.push([bydecodeDef.delStack])
                 vm.qiutBlock()
+                loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
             }else{
                 jumpToTag(vm,end)
             } 
@@ -787,6 +1000,7 @@ function doWhileStatement(vm, node) {
     
     vm.code.push(start)
 
+    const startPosition=checkCurrentIndex(vm)
     vm.newBlock()
     vm.code.push([bydecodeDef.newStack])
     if(node.body.type=="BlockStatement"){
@@ -798,6 +1012,8 @@ function doWhileStatement(vm, node) {
     vm.code.push(loop)
     vm.code.push([bydecodeDef.delStack])
     vm.qiutBlock()
+
+    loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
 
     const test = new __Tag("doWhileStatementTest")
     loadDefVar(vm, node.test,test)

@@ -12,6 +12,38 @@ window["testFunc"]=function(){
 
 const jsCode = `
 // console.log(window.document.body.innerHTML.toString())
+
+let k=9;
+for(var i=3;i>=0;i--){
+  k=k/i;
+  console.log(k/i)
+}
+console.log("last k="+k)
+try{
+  console.log("try block")
+  throw new Error("msg")
+}catch(e){
+   console.log("catch block")
+  console.log(e)
+}finally{
+  console.log("finally block")
+}
+
+try{
+  console.log("try block2")
+}catch(e){
+   console.log("catch block2")
+  console.log(e)
+}finally{
+  console.log("finally block2")
+}
+
+try{
+  console.log("try block3")
+}finally{
+  console.log("finally block3")
+}
+
 const c={
   a:4,
   c:"cdf",
@@ -58,6 +90,10 @@ do{
   console.log(c)
 }while(c.a)
 
+for(let k=0;k<5;++k){
+  console.log("5 times for "+(k+1))
+}
+
 b+1
 arr
 `;
@@ -79,8 +115,10 @@ export default {
     const runtime=vm.compile()
     const strRuntime=runtime.toString()
     console.log(strRuntime);
-    //  console.log(runtime.run());
+    console.log("code length is "+strRuntime.length)
+    // console.log(runtime.run());
     console.log(eval(strRuntime))
+    
   },
 };
 </script>
