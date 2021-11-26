@@ -6,19 +6,54 @@ import * as acorn from "acorn";
 
 import jsvm from "../js/ByteCode";
 
-window["testFunc"]=function(){
-  return 1234567890
-}
+
 
 const jsCode = `
+"use strict";
 // console.log(window.document.body.innerHTML.toString())
+console.log(123 instanceof Number)
 
+let yu=null,xu=undefined
+
+let x=3
+x+=2
+function abc(a1){
+ 
+  console.log("outter x is "+(x++))
+  console.log("argument0 is "+a1)
+  
+  return 22;
+}
+
+
+console.log(typeof new Date() === 'object')
+console.log(typeof new Date())
+
+console.log(typeof "123")
+console.log(typeof Symbol() === 'symbol');
+console.log(typeof undefined === 'undefined')
+console.log(typeof abc === 'function')
+
+const varFunc=function(a,b,c){
+  console.log(999)
+}
+varFunc()
+
+console.log("nest function returns "+abc(33))
+console.log("after clouser x is "+x)
 let k=9;
 for(var i=3;i>=0;i--){
   k=k/i;
   console.log(k/i)
 }
 console.log("last k="+k)
+if(k=9){
+  console.log("current k="+k)
+}
+if(k=0){
+  console.error("this should not be seen ")
+}
+ console.log("current ~k="+~k)
 try{
   console.log("try block")
   throw new Error("msg")
@@ -112,12 +147,42 @@ export default {
     console.log(node);
     const vm=jsvm.accept(node)
     console.log(vm);
+    vm.localMethods.forEach(v=>console.log(v))
     const runtime=vm.compile()
+    console.log(runtime)
     const strRuntime=runtime.toString()
     console.log(strRuntime);
     console.log("code length is "+strRuntime.length)
-    // console.log(runtime.run());
-    console.log(eval(strRuntime))
+    
+
+    window["testFunc"]=function(){
+      return 1234567890
+    }
+    console.log(runtime.run());
+
+    // console.log(eval(strRuntime))
+
+    // const pt=new Proxy({},{
+    //   get(target,p){
+    //     if(p==="num"){
+    //       return 1;
+    //     }
+    //     return target[p]
+    //   },
+    //   set(target,p,value){
+    //     if(p==="num"){
+    //       window["num"]=value;
+    //     }else{
+    //       target[p]=value
+    //     }
+    //     return true;
+     
+    //   }
+    // })
+
+    // console.log(pt.num)
+    // pt.num=999
+    // console.log(window.num)
     
   },
 };

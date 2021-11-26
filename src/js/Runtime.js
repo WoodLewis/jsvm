@@ -1,16 +1,18 @@
-function Runtime(){
+function Runtime(bytecodes,codeoffset,env){
+    this.extenals=[]
     this.errorMap=[]
     this.stack=[]
     this.stackArray=[]
     this.pointer=0
-    this.temp=[]
-    this.codeOffset=0
+    this.codeOffset=codeoffset||0
     this.constants=[]
-    this.code=[]
-    this.env={}
+    this.code=bytecodes||[]
+    this.env=env||{}
     this.retVal=null
     this.codeMap=[]
     this.error=null
+    this.accesstors=[]
+    this.contextMap=[]
 }
 
 Runtime.prototype.run=function(){
@@ -19,8 +21,8 @@ Runtime.prototype.run=function(){
         try{
             this.codeMap[this.code[this.pointer]](this)
         }catch(e){
-            this.error=e;
-            this.throwError()
+            console.error(e)
+            this.error=e,this.throwError()
         }
     }
     if(this.error){
@@ -34,30 +36,20 @@ Runtime.prototype.retValue=function(retVal){
 }
 
 Runtime.prototype.envObject=function(name){
-    if(this.env[name]===undefined){
-        return window[name]
-    }
-    return this.env[name]
+    return Object.prototype.hasOwnProperty.call(this.env,name)?this.env[name]:window[name]
 }
 
 Runtime.prototype.pushBackEnv=function(name,val){
-    if(this.env[name]===undefined){
-        window[name]=val
-    }
-    this.env[name]=val
-    return this
+    Object.prototype.hasOwnProperty.call(this.env,name)?(this.env[name]=val):(window[name]=val)
 }
 
 Runtime.prototype.newStack=function(){
     this.stack[this.stack.length]=[]
     this.stackArray[this.stackArray.length]=[]
-    return this
 }
 
 Runtime.prototype.delStack=function(){
-    this.stack.pop()
-    this.stackArray.pop()
-    return this
+    this.stack.pop(),this.stackArray.pop()
 }
 
 Runtime.prototype.nextCodeNVal=function(n){
@@ -69,16 +61,23 @@ Runtime.prototype.nextCodeVal=function(){
 
 Runtime.prototype.storeStackValue=function(stack,index,val){
     this.stackArray[stack][index]=val
-    return this
 }
 
 Runtime.prototype.visitStackVal=function(stack,index){
     return this.stackArray[stack][index]
 }
 
+Runtime.prototype.visitContextVal=function(stack,index){
+    return this.contextMap[stack][index]
+}
+
+Runtime.prototype.storeContextVal=function(stack,index,val){
+    this.contextMap[stack][index]=val
+}
+
+
 Runtime.prototype.pushStack=function(obj){
     this.stack[this.stack.length-1].push(obj)
-    return this
 }
 
 Runtime.prototype.popStackTop=function(){
@@ -88,13 +87,12 @@ Runtime.prototype.popStackTop=function(){
 Runtime.prototype.dupStackTop=function(){
     const st=this.stack[this.stack.length-1]
     st.push(st[st.length-1])
-    return this
 }
 
-Runtime.prototype.popStackTopN=function(N){
+Runtime.prototype.popStackTopN=function(n){
     const st=this.stack[this.stack.length-1]
     const arr=[]
-    for(let i=N;i>0;--i){
+    for(let i=n;i>0;--i){
         arr[i-1]= st.pop()
     }
     return arr
@@ -104,78 +102,115 @@ Runtime.prototype.popStackCodeTopN=function(){
 }
 
 Runtime.prototype.loadConstant=function(index){
-    const s=this.code.slice(index,this.code[index-1])
-    s.forEach((v,i,r)=>r[i]=String.fromCharCode(v^i))
-    return s.join('')
+    return this.loadCodeArray(index,this.code[index-1])
+        .map((v,i)=>String.fromCharCode(v^i))
+        .join('')
+}
+
+Runtime.prototype.loadCodeArrayN=function(index){
+    const _=index+this.codeOffset+1
+    return this.code.slice(_,_+this.code[index+this.codeOffset])
+}
+
+Runtime.prototype.loadCodeArray=function(start,end){
+    return this.code.slice(this.codeOffset+start,this.codeOffset+end)
 }
 
 Runtime.prototype.next=function(len){
     this.pointer+=len
-    return this
 }
 
 Runtime.prototype.goto=function(index){
     this.pointer=index+this.codeOffset
-    return this
 }
 
 Runtime.prototype.jmp=function(){
     this.goto(this.code[this.pointer+1])
-    return this
 }
 
 Runtime.prototype.exit=function(){
     this.goto(this.code.length)
-    return this
+    this.accesstors&&this.accesstors.length&&this.accesstors.forEach(v=>v.exit())
 }
 
 Runtime.prototype.loadError=function(){
     this.pushStack(this.error)
     this.error=null
-    return this
 }
+
+Runtime.prototype.loadErrorMap=function(_a){
+    this.errorMap=_a
+}
+
+
 Runtime.prototype.setError=function(){
     this.error=this.popStackTop()
-    return this
 }
 
 Runtime.prototype.throwError=function(){
-    for(let i=0;this.errorMap[i];++i){
-        if(this.errorMap[i][0]<=this.pointer&&this.pointer<this.errorMap[i][1]){
-            this.goto(this.errorMap[i][2])
-            return this;
+    const val=this.pointer-this.codeOffset
+    for(let i=0;this.errorMap[i];i+=3){
+        if(this.errorMap[i]<=val&&val<this.errorMap[i+1]){
+            return this.goto(this.errorMap[i+2])
         }
     }
     this.exit()
-    return this
+}
+
+Runtime.prototype.newFunc=function(_l,_b){
+    const that=this;
+    return function(){
+        const nr= new Runtime(_b,0,that.env)
+        nr.accesstors=[that].concat(that.accesstors)
+        nr.newStack()
+        nr.codeMap=that.codeMap
+        for(let i=0;i<_l;++i){
+            nr.storeStackValue(0,i,arguments[i])
+        }
+        return nr.run()
+    }
+}
+
+Runtime.prototype.loadContext=function(_p,_i){
+    this.contextMap.push(this.accesstors[_p].stackArray[_i])
 }
 
 
+
 function replaceBlank(str){
-    return  str.replace(/\/\/[^\n]*\n/g,"")
-    .replace(/[\n\s]*\{[\s\r\n]*([a-zA-Z0-9_$])/g,"{$1")
-    .replace(/([a-zA-Z0-9_$;\]])[\s\r\n]*\}[\n\s]*/g,"$1}")
-    .replace(/[\n\s]+([+\-*/%=><])[\n\s]+/g,"$1")
-    .replace(/[\n\s]*,[\n\s]*/g,",")
-    .replace(/([a-zA-Z0-9])\s+\(/g,"$1(")
-    .replace(/\s+([=!><]+=)\s+/g,"$1")
-    .replace(/([a-zA-Z0-9_;])(\s+)?[\n\r]+(\s+)?([a-zA-Z0-9_;])/g,"$1;$4")
-    .replace(/;{2,}/g,";")
+    return  str
+    .replace(/\/\/[^\n]*\n/g,"")//去掉注释
+    .replace(/[\n\r\t\s]*([{}[\]}();]+)[\n\r\t\s]*/g,"$1")//去除[]{}();的前后空白
+    .replace(/[\n\r\t\s]*([+\-*/%=><&|!><?.,]+)[\n\r\t\s]*/g,"$1")//去除常见操作符的前后空白
     .replace(/;}/g,"}")
 }
 
 function reloaceLocalVar(func){
     return func.replaceAll("this.stackArray","this._a")
+    .replaceAll("that.stackArray","that._a")
+    .replaceAll("].stackArray","]._a")
     .replaceAll("this.env","this._e")
     .replaceAll("this.stack","this._s")
     .replaceAll("this.pointer","this._p")
     .replaceAll("this.codeMap","this._c")
+    .replaceAll("that.codeMap","that._c")
+    .replaceAll("nr.codeMap","nr._c")
     .replaceAll("this.codeOffset","this._o")
     .replaceAll("this.errorMap","this._em")
+    .replaceAll("this.error","this.$e")
     .replaceAll("this.code","this._$")
+    .replaceAll("this.retVal","this.$")
+    .replaceAll("this.accesstors","this.$a")
+    .replaceAll("that.accesstors","that.$a")
+    .replaceAll("nr.accesstors","nr.$a")
+    .replaceAll("this.contextMap","this.$c")
+    .replaceAll("that.contextMap","that.$c")
     .replaceAll("stack","$0")
     .replaceAll("index","$1")
     .replaceAll("name","$2")
+    .replaceAll("retVal","$$")
+    .replaceAll("val","$_")
+    .replaceAll("that","$t")
 }
 
 Runtime.prototype.toString=function(){
@@ -195,12 +230,14 @@ Runtime.prototype.toString=function(){
             str=str
                 .replaceAll("this."+arr[i]+"(","this.__"+i+"(")
                 .replaceAll("runtime."+arr[i]+"(","runtime.__"+i+"(")
+                .replaceAll("nr."+arr[i]+"(","nr.__"+i+"(")
+                .replaceAll("v."+arr[i]+"(","v.__"+i+"(")
         }
         return str
     }
     let code=this.code
     let codeMap=this.codeMap.toString()
-        .replace(/function\s+_apply\(runtime\)/g,"function(r)")
+        .replace(/function\s+_apply\(runtime\)/g,"r=>")
     //替换一些常用的变量值   
     codeMap=replaceMethods(replaceBlank(codeMap)).replaceAll("runtime.__","r.__")
         .replaceAll("index","_i")
@@ -209,8 +246,11 @@ Runtime.prototype.toString=function(){
         .replaceAll("left","_")
         .replaceAll("right","__")
         .replaceAll("className","_n")
-        .replaceAll("objName","_on")
-        .replaceAll("methodName","_mn")
+        .replaceAll("objName","_0")
+        .replaceAll("methodName","_1")
+        .replaceAll("args","___")
+        .replaceAll("array","_2")
+        .replaceAll("val","_3")
         .replace(/var\s+([_\w]+)=([^;]+);var\s+([_\w]+)=/g,"var $1=$2,$3=")
         .replace(/if\(([^()]+)\)\{([^}]+)\}else\{([^}]+)\}/g,"($1)?($2):($3);")
     let runtimeMethods="([";
@@ -220,12 +260,39 @@ Runtime.prototype.toString=function(){
             +"},"
     }
     runtimeMethods+="{run:"+reloaceLocalVar(replaceBlank(replaceMethods(Runtime.prototype.run.toString())))+"}]).forEach(v=>{for(var i in v){Runtime.prototype[i]=v[i]}})"
-    const errMap=this.errorMap.map(v=>"["+v+"]").join(",")
+
    
-    return `function Runtime(){this._s=[],this._a=[],this._p=0,this.temp=[],this._em=[${errMap}],this._o=0,this._$=[${code}],this._e={},this.retVal=null,this._c=[${codeMap}]
-};${runtimeMethods}
-new Runtime().run()
-`
+    const declearation= `function Runtime(_,__,___){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
+
+    let proxy="";
+    if(this.extenals&&this.extenals.length){
+        const getter=this.extenals.map(v=>
+    `if(property==="${v}"){
+        return window["${v}"]//此处请按照实际情况处理内置代码需要获取变量${v}时情况
+    }`).join("\n")
+        const setter=this.extenals.map(v=>
+    `if(property==="${v}"){
+        window["${v}"]=value//此处请按照实际情况处理内置代码需要设置变量${v}的值时情况,如果确信你的代码中没有对此值进行赋值操作，可忽略此set方法
+    }`).join("\n")    
+        proxy=`
+//你的代码中使用了未定义的变量值，为代码能正确运行，请手工完成下面的代码，设置这些值的获取和赋值方法
+const envProxy=new Proxy({},{
+    get(target,property){
+    ${getter}
+    return undefined
+    },
+    set(target,property,value){
+    ${setter}else{
+        target[property]=value
+    }
+    return true;
+    }
+})
+       `     
+    }
+
+
+    return declearation+"\n const bytecodes=["+code+"]\n"+proxy+"\nnew Runtime(bytecodes,0"+(proxy?",envProxy":"")+").run()"
 }
 
 

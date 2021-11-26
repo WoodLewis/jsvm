@@ -1,3 +1,5 @@
+let byteCode_define_index=0
+
 export default {
     exit: {
         des: {
@@ -6,7 +8,7 @@ export default {
             newStack: "[]"
         },
         name: 'exit',
-        val: 0,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.exit()
             runtime.next(1)
@@ -19,7 +21,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'add',
-        val: 1,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -34,7 +36,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'min',
-        val: 2,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -48,7 +50,7 @@ export default {
             stack: "[arg1,arg2]",
         },
         name: 'mul',
-        val: 3,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -63,7 +65,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'div',
-        val: 4,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -78,7 +80,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'mod',
-        val: 5,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -93,7 +95,7 @@ export default {
             newStack: "[]"
         },
         name: 'eqJmp',
-        val: 6,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -111,7 +113,7 @@ export default {
             newStack: "[]"
         },
         name: 'neqJmp',
-        val: 7,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
@@ -129,7 +131,7 @@ export default {
             newStack: "[stringVal]"
         },
         name: 'loadConst',
-        val: 8,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const index=runtime.nextCodeVal()
             const str=runtime.loadConstant(index)
@@ -144,7 +146,7 @@ export default {
             newStack: "[[arg1,arg2,arg3...]]"
         },
         name: 'makeArray',
-        val: 9,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const len=runtime.nextCodeVal()
             const array=runtime.popStackTopN(len)
@@ -159,7 +161,7 @@ export default {
             newStack: "[varVal]"
         },
         name: 'loadVar',
-        val: 10,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
             runtime.pushStack(val)
@@ -173,7 +175,7 @@ export default {
             newStack: "[val]"
         },
         name: 'loadValue',
-        val: 11,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.nextCodeVal()
             runtime.pushStack(val)
@@ -187,7 +189,7 @@ export default {
             newStack: "[][]"
         },
         name: 'newStack',
-        val: 12,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.newStack()
             runtime.next(1)
@@ -200,10 +202,24 @@ export default {
             newStack: "[]"
         },
         name: 'storeVar',
-        val: 13,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.popStackTop()
             runtime.storeStackValue(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2),val)
+            runtime.next(3)
+        }
+    },
+    storeContextVar: {
+        des: {
+            code: "storeContextVar tagetObjectStackPosition[stackIndex,positionIndex]",
+            stack: "[arg]",
+            newStack: "[]"
+        },
+        name: 'storeContextVar',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const val=runtime.popStackTop()
+            runtime.storeContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2),val)
             runtime.next(3)
         }
     },
@@ -214,7 +230,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'newClassObject',
-        val: 14,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const className=runtime.loadConstant(runtime.nextCodeVal()),
                 array=runtime.popStackTopN(runtime.nextCodeNVal(2))
@@ -232,7 +248,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'callFunc',
-        val: 15,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const className=runtime.loadConstant(runtime.nextCodeVal())
             const array=runtime.popStackTopN(runtime.nextCodeNVal(2))
@@ -248,7 +264,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'memberMethod',
-        val: 16,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
             const index=runtime.nextCodeNVal(3), 
@@ -260,17 +276,35 @@ export default {
             runtime.next(5)
         }
     },
-    popStack: {
+    contextMemberMethod: {
         des: {
-            code: "popStack",
-            stack: "[objToPop]",
+            code: "contextMemberMethod tagetObjectStackPosition[stackIndex,positionIndex] functionNameIndex argsLenth",
+            stack: "[arg1,arg2,arg3...]",
+            newStack: "[retVal]"
+        },
+        name: 'contextMemberMethod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const val=runtime.visitContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            const index=runtime.nextCodeNVal(3), 
+                methodName=runtime.loadConstant(index),
+                args=runtime.nextCodeNVal(4)
+            const array=runtime.popStackTopN(args)
+
+            runtime.pushStack(val[methodName].apply(val,array))
+            runtime.next(5)
+        }
+    },
+    noopN: {
+        des: {
+            code: "noopN n",
+            stack: "[]",
             newStack: "[]"
         },
         name: 'popStack',
-        val: 17,
+        val: byteCode_define_index++,
         _apply:function(runtime){
-            runtime.popStackTop()
-            runtime.next(1)
+            runtime.next(runtime.nextCodeVal()+2)
         }
     },
     and: {
@@ -280,15 +314,9 @@ export default {
             newStack: "[retVal]"
         },
         name: 'and',
-        val: 18,
+        val: byteCode_define_index++,
         _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            if(right&&left){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(runtime.popStackTop()&&runtime.popStackTop())
             runtime.next(1)
         }
     },
@@ -299,15 +327,11 @@ export default {
             newStack: "[retVal]"
         },
         name: 'or',
-        val: 19,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()
             const left=runtime.popStackTop()
-            if(right||left){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(left||right)
             runtime.next(1)
         }
     },
@@ -318,7 +342,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'byteAnd',
-        val: 20,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
@@ -333,7 +357,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'byteOr',
-        val: 21,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
@@ -348,9 +372,22 @@ export default {
             newStack: "[null]"
         },
         name: 'loadNull',
-        val: 22,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack(null)
+            runtime.next(1)
+        }
+    },
+    loadUndefined: {
+        des: {
+            code: "loadUndefined",
+            stack: "[]",
+            newStack: "[undefined]"
+        },
+        name: 'loadUndefined',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(undefined)
             runtime.next(1)
         }
     },
@@ -361,7 +398,7 @@ export default {
             newStack: "[retVal]"
         },
         name: 'envMemberMethod',
-        val: 23,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const objName=runtime.loadConstant(runtime.nextCodeVal()),
              methodName=runtime.loadConstant(runtime.nextCodeNVal(2)),
@@ -379,7 +416,7 @@ export default {
             newStack: "[targetObject]"
         },
         name: 'loadEnv',
-        val: 24,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const objName=runtime.loadConstant(runtime.nextCodeVal())
             runtime.pushStack(runtime.envObject(objName))
@@ -393,7 +430,7 @@ export default {
             newStack: "[]"
         },
         name: 'jmpZero',
-        val: 25,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             if(!runtime.popStackTop()){
                 runtime.jmp()
@@ -409,7 +446,7 @@ export default {
             newStack: "[]"
         },
         name: 'jmpNotZero',
-        val: 26,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             if(runtime.popStackTop()){
                 runtime.jmp()
@@ -425,7 +462,7 @@ export default {
             newStack: "[]"
         },
         name: 'delStack',
-        val: 27,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.delStack()
             runtime.next(1)
@@ -438,7 +475,7 @@ export default {
             newStack: "[]"
         },
         name: 'noop',
-        val: 28,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.next(1)
         }
@@ -450,15 +487,11 @@ export default {
             newStack: "[testResult]"
         },
         name: 'lt',
-        val: 29,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
-            if(left<right){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(left<right)
             runtime.next(1)
         }
     },
@@ -469,15 +502,11 @@ export default {
             newStack: "[testResult]"
         },
         name: 'gt',
-        val: 30,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
-            if(left>right){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(left>right)
             runtime.next(1)
         }
     },
@@ -488,15 +517,11 @@ export default {
             newStack: "[testResult]"
         },
         name: 'lte',
-        val: 31,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
-            if(left<=right){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(left<=right)
             runtime.next(1)
         }
     },
@@ -507,15 +532,11 @@ export default {
             newStack: "[testResult]"
         },
         name: 'gte',
-        val: 32,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
-            if(left>=right){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(left>=right)
             runtime.next(1)
         }
     },
@@ -526,7 +547,7 @@ export default {
             newStack: "[var1+1]"
         },
         name: 'inc',
-        val: 33,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack(runtime.popStackTop()+1)
             runtime.next(1)
@@ -539,7 +560,7 @@ export default {
             newStack: "[var1-1]"
         },
         name: 'dec',
-        val: 34,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack(runtime.popStackTop()-1)
             runtime.next(1)
@@ -552,7 +573,7 @@ export default {
             newStack: "[var1,var1]"
         },
         name: 'dupStack',
-        val: 35,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.dupStackTop()
             runtime.next(1)
@@ -565,13 +586,24 @@ export default {
             newStack: "[testResult]"
         },
         name: 'eq',
-        val: 36,
+        val: byteCode_define_index++,
         _apply:function(runtime){
-            if(runtime.popStackTop()===runtime.popStackTop()){
-                runtime.pushStack(1)
-            }else{
-                runtime.pushStack(0)
-            }
+            runtime.pushStack(runtime.popStackTop()===runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
+    instanceof: {
+        des: {
+            code: "instanceof",
+            stack: "[var1,var2]",
+            newStack: "[testResult]"
+        },
+        name: 'instanceof',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop(),
+                left=runtime.popStackTop()
+            runtime.pushStack(left instanceof right)
             runtime.next(1)
         }
     },
@@ -582,7 +614,7 @@ export default {
             newStack: "[]"
         },
         name: 'jmp',
-        val: 37,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.jmp()
         }
@@ -594,7 +626,7 @@ export default {
             newStack: "[val]"
         },
         name: 'loadProp',
-        val: 38,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const property=runtime.popStackTop(),
                 target=runtime.popStackTop()
@@ -610,7 +642,7 @@ export default {
             newStack: "[]"
         },
         name: 'setProp',
-        val: 39,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const property=runtime.popStackTop(),
                 target=runtime.popStackTop(),
@@ -627,7 +659,7 @@ export default {
             retStack:"retVal"
         },
         name: 'retFunc',
-        val: 40,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.retValue(runtime.popStackTop());
             runtime.next(1)
@@ -640,7 +672,7 @@ export default {
             newStack: "[obj]"
         },
         name: 'newObj',
-        val: 41,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack({})
             runtime.next(1)
@@ -653,7 +685,7 @@ export default {
             newStack: "[]"
         },
         name: 'rsetProp',
-        val: 42,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.popStackTop(),
                 property=runtime.popStackTop(),
@@ -670,7 +702,7 @@ export default {
             retStack:"target"
         },
         name: 'movRet',
-        val: 43,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const val=runtime.popStackTop()
             runtime.retValue(val);
@@ -685,7 +717,7 @@ export default {
             retStack:""
         },
         name: 'stackMemberMethod',
-        val: 44,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             const args=runtime.nextCodeNVal(1),
                 methodName=runtime.popStackTop(),
@@ -697,19 +729,20 @@ export default {
             // runtime.pushStack(obj[methodName](...array))
         }
     },
-    callLocalFunc: {
+    callStackFunc: {
         des: {
-            code: "callLocalFunc tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
-            stack: "[arg1,arg2...]",
+            code: "callStackFunc argsLen",
+            stack: "[arg1,arg2...,func]",
             newStack: "[retVal]",
             retStack:""
         },
-        name: 'callLocalFunc',
-        val: 45,
+        name: 'callStackFunc',
+        val: byteCode_define_index++,
         _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
-            runtime.next(4)
-            throw new Error("not implement instruction callLocalFunc")
+            const target=runtime.popStackTop()
+            const array=runtime.popStackTopN(runtime.nextCodeVal())
+            runtime.pushStack(target.apply(window,array))
+            runtime.next(2)
         }
     },
     newLocalClassObject: {
@@ -720,7 +753,7 @@ export default {
             retStack:""
         },
         name: 'newLocalClassObject',
-        val: 46,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             //TODO 尚未实现自定义方法调用
             runtime.next(4)
@@ -735,10 +768,25 @@ export default {
             retStack:""
         },
         name: 'not',
-        val: 47,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack(!runtime.popStackTop())
             runtime.next(1)
+        }
+    },
+    loadErrorMap: {
+        des: {
+            code: "loadErrorMap codeIndex n",
+            stack: "[]",
+            newStack: "[]",
+            retStack:""
+        },
+        name: 'loadErrorMap',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const _i=runtime.nextCodeVal(),_=runtime.nextCodeNVal(2)
+            runtime.loadErrorMap(runtime.loadCodeArray(_i,_i+_*3))
+            runtime.next(3)
         }
     },
     storeEnv: {
@@ -749,7 +797,7 @@ export default {
             retStack:""
         },
         name: 'storeEnv',
-        val: 48,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushBackEnv(
                     runtime.loadConstant(runtime.nextCodeVal()),
@@ -765,7 +813,7 @@ export default {
             retStack:""
         },
         name: 'loadError',
-        val: 49,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.loadError()
             runtime.next(1)
@@ -779,7 +827,7 @@ export default {
             retStack:""
         },
         name: 'throwError',
-        val: 50,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.throwError()
         }
@@ -792,10 +840,117 @@ export default {
             retStack:""
         },
         name: 'setError',
-        val: 51,
+        val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.setError()
             runtime.next(1)
+        }
+    },
+    popStack: {
+        des: {
+            code: "popStack",
+            stack: "[objToPop]",
+            newStack: "[]"
+        },
+        name: 'popStack',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.popStackTop()
+            runtime.next(1)
+        }
+    },
+    reverse: {
+        des: {
+            code: "reverse",
+            stack: "[num]",
+            newStack: "[~num]"
+        },
+        name: 'reverse',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(~runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
+    typeof: {
+        des: {
+            code: "typeof",
+            stack: "[num]",
+            newStack: "[typeof num]"
+        },
+        name: 'typeof',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            // const _=Object.prototype.toString.call(runtime.popStackTop()).replace(/\[object\s+(.*)\]/,"$1").toLowerCase()
+            // runtime.pushStack(_=="null"?"object":_)
+            runtime.pushStack(typeof runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
+    nor: {
+        des: {
+            code: "nor",
+            stack: "[num1,num2]",
+            newStack: "[num1^num2]"
+        },
+        name: 'nor',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.popStackTop()^runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
+    defFunc: {
+        des: {
+            code: "defFunc paramsLen",
+            stack: "[bytes]",
+            newStack: "[function]"
+        },
+        name: 'defFunc',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.newFunc(runtime.nextCodeVal(),runtime.popStackTop()))
+            runtime.next(2)
+        }
+    },
+    loadFuncDef: {
+        des: {
+            code: "loadFuncDef codeIndex",
+            stack: "[]",
+            newStack: "[bytes]"
+        },
+        name: 'loadFuncDef',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.loadCodeArrayN(runtime.nextCodeVal()))
+            runtime.next(2)
+        }
+    },
+    loadContext: {
+        des: {
+            code: "loadContext parentIndex stackIndex",
+            stack: "[]",
+            newStack: "[]"
+        },
+        name: 'loadContext',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.loadContext(runtime.nextCodeVal(),runtime.nextCodeNVal(2))
+            runtime.next(3)
+        }
+    },
+    loadContextVal: {
+        des: {
+            code: "loadContextVal tagetObjectStackPosition[stackIndex,positionIndex]",
+            stack: "[]",
+            newStack: "[varVal]"
+        },
+        name: 'loadContextVal',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const val=runtime.visitContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            runtime.pushStack(val)
+            runtime.next(3)
         }
     },
 }
