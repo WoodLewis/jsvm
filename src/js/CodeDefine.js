@@ -139,6 +139,19 @@ export default {
             runtime.next(2)
         }
     },
+    loadBlank: {
+        des: {
+            code: "loadBlank",
+            stack: "[]",
+            newStack: "['']"
+        },
+        name: 'loadBlank',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack("")
+            runtime.next(1)
+        }
+    },
     mkArr: {
         des: {
             code: "mkArr argsLenth",
@@ -662,7 +675,7 @@ export default {
         val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.retValue(runtime.popStackTop());
-            runtime.next(1)
+            runtime.gotoEnd()
         }
     },
     newObj: {
@@ -753,6 +766,21 @@ export default {
             retStack:""
         },
         name: 'newLocalClassObject',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            //TODO 尚未实现自定义方法调用
+            runtime.next(4)
+            throw new Error("not implement instruction newLocalClassObject")
+        }
+    },
+    newContextClassObject: {
+        des: {
+            code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
+            stack: "[arg1,arg2...]",
+            newStack: "[retVal]",
+            retStack:""
+        },
+        name: 'newContextClassObject',
         val: byteCode_define_index++,
         _apply:function(runtime){
             //TODO 尚未实现自定义方法调用
@@ -887,6 +915,19 @@ export default {
             runtime.next(1)
         }
     },
+    void: {
+        des: {
+            code: "typeof",
+            stack: "[num]",
+            newStack: "[typeof num]"
+        },
+        name: 'typeof',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(void runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
     nor: {
         des: {
             code: "nor",
@@ -909,7 +950,7 @@ export default {
         name: 'defFunc',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            runtime.pushStack(runtime.newFunc(runtime.nextCodeVal(),runtime.popStackTop()))
+            runtime.pushStack(runtime.newFunc(runtime.nextCodeVal(),runtime.popStackTop(),runtime.popStackTop()))
             runtime.next(2)
         }
     },
@@ -953,4 +994,59 @@ export default {
             runtime.next(3)
         }
     },
+    byteMovRight: {
+        des: {
+            code: "byteMovRight",
+            stack: "[num,step]",
+            newStack: "[num>>step]"
+        },
+        name: 'byteMovRight',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop(),left=runtime.popStackTop()
+            runtime.pushStack(left>>right)
+            runtime.next(1)
+        }
+    },
+    byteUnsignedMovRight: {
+        des: {
+            code: "byteUnsignedMovRight",
+            stack: "[num,step]",
+            newStack: "[num>>>step]"
+        },
+        name: 'byteUnsignedMovRight',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop(),left=runtime.popStackTop()
+            runtime.pushStack(left>>>right)
+            runtime.next(1)
+        }
+    },
+    byteMovLeft: {
+        des: {
+            code: "byteMovLeft",
+            stack: "[num,step]",
+            newStack: "[num<<step]"
+        },
+        name: 'byteMovLeft',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop(),left=runtime.popStackTop()
+            runtime.pushStack(left<<right)
+            runtime.next(1)
+        }
+    },
+    cpContext:{
+        des: {
+            code: "cpContext [runtimeIndex,stackIndex]",
+            stack: "[]",
+            newStack: "[[...]]"
+        },
+        name: 'cpContext',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.childContext(runtime.nextCodeVal(),runtime.nextCodeNVal(2)))
+            runtime.next(3)
+        }
+    }
 }

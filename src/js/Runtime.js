@@ -35,6 +35,11 @@ Runtime.prototype.retValue=function(retVal){
     return this.retVal=retVal
 }
 
+Runtime.prototype.gotoEnd=function(){
+    return this.pointer=this.code.length
+}
+
+
 Runtime.prototype.envObject=function(name){
     return Object.prototype.hasOwnProperty.call(this.env,name)?this.env[name]:window[name]
 }
@@ -157,11 +162,12 @@ Runtime.prototype.throwError=function(){
     this.exit()
 }
 
-Runtime.prototype.newFunc=function(_l,_b){
+Runtime.prototype.newFunc=function(_l,_b,_m){
     const that=this;
     return function(){
         const nr= new Runtime(_b,0,that.env)
         nr.accesstors=[that].concat(that.accesstors)
+        nr.contextMap=_m
         nr.newStack()
         nr.codeMap=that.codeMap
         for(let i=0;i<_l;++i){
@@ -169,6 +175,10 @@ Runtime.prototype.newFunc=function(_l,_b){
         }
         return nr.run()
     }
+}
+
+Runtime.prototype.childContext=function(_p,_i){
+    return (_p?this.accesstors[_p-1]:this).stackArray[_i]
 }
 
 Runtime.prototype.loadContext=function(_p,_i){
