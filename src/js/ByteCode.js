@@ -888,6 +888,54 @@ function callExpression(vm, node) {
     throw new Error("unknown callee type "+callee.type)
 }
 
+function callLocalCallExpressionMember (vm,node,args,idx){
+    if(node.object.type==="Identifier"){
+        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+            loadValueWithTag(vm, node.property)
+            vm.code.push([bydecodeDef.memberIndexMethod,idx, args.length])
+        }else{
+            vm.code.push([bydecodeDef.memberMethod,idx, vm.addConstr(node.property.name), args.length])
+        }
+    }else if(node.object.type==="Literal"){
+        loadValueWithTag(vm, node.property)
+        vm.code.push([bydecodeDef.memberIndexMethod,idx, args.length])
+    }else{
+        vm.code.push([bydecodeDef.memberMethod,idx, vm.addConstr(node.property.name), args.length])
+    }
+}
+
+function callContextCallExpressionMember (vm,node,args,idx){
+    if(node.object.type==="Identifier"){
+        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+            loadValueWithTag(vm, node.property)
+            vm.code.push([bydecodeDef.contextMemberIndexMethod,idx, args.length])
+        }else{
+            vm.code.push([bydecodeDef.contextMemberMethod,idx, vm.addConstr(node.property.name), args.length])
+        }
+    }else if(node.object.type==="Literal"){
+        loadValueWithTag(vm, node.property)
+        vm.code.push([bydecodeDef.contextMemberIndexMethod,idx, args.length])
+    }else{
+        vm.code.push([bydecodeDef.contextMemberMethod,idx, vm.addConstr(node.property.name), args.length])
+    }
+}
+
+function callEnvCallExpressionMember (vm,node,args,name){
+    if(node.object.type==="Identifier"){
+        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+            loadValueWithTag(vm, node.property)
+            vm.code.push([bydecodeDef.envMemberIndexMethod, vm.addConstr(name), args.length])
+        }else{
+            vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(node.property.name), args.length])
+        }
+    }else if(node.object.type==="Literal"){
+        loadValueWithTag(vm, node.property)
+        vm.code.push([bydecodeDef.envMemberIndexMethod, vm.addConstr(name),args.length])
+    }else{
+        vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(node.property.name), args.length])
+    }
+}
+
 
 function loadCallExpressionMember(vm,node,args,isTop){
     if(node.type==="NewExpression"){
@@ -903,13 +951,13 @@ function loadCallExpressionMember(vm,node,args,isTop){
             if (idx[0] === -1) {
                 idx=vm.findContextVar(name)
                 if(idx[0]!=-1){
-                    vm.code.push([bydecodeDef.contextMemberMethod,idx, vm.addConstr(node.property.name), args.length])
+                    callContextCallExpressionMember(vm,node,args,idx)
                     return ;
                 }
                 vm.logExtenals(name)
-                vm.code.push([bydecodeDef.envMemberMethod, vm.addConstr(name), vm.addConstr(node.property.name), args.length])
+                callEnvCallExpressionMember(vm,node,args,name)
             } else {
-                vm.code.push([bydecodeDef.memberMethod, idx, vm.addConstr(node.property.name), args.length])
+                callLocalCallExpressionMember(vm,node,args,idx)
             }
             return ;
         }else{

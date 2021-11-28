@@ -289,6 +289,24 @@ export default {
             runtime.next(5)
         }
     },
+    memberIndexMethod: {
+        des: {
+            code: "memberIndexMethod tagetObjectStackPosition[stackIndex,positionIndex] argsLenth",
+            stack: "[arg1,arg2,arg3...,functionTarget]",
+            newStack: "[retVal]"
+        },
+        name: 'memberIndexMethod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const val=runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            const args=runtime.nextCodeNVal(3)
+            const methodName=runtime.popStackTop()
+            const array=runtime.popStackTopN(args)
+
+            runtime.pushStack(val[methodName].apply(val,array))
+            runtime.next(4)
+        }
+    },
     contextMemberMethod: {
         des: {
             code: "contextMemberMethod tagetObjectStackPosition[stackIndex,positionIndex] functionNameIndex argsLenth",
@@ -306,6 +324,24 @@ export default {
 
             runtime.pushStack(val[methodName].apply(val,array))
             runtime.next(5)
+        }
+    },
+    contextMemberIndexMethod: {
+        des: {
+            code: "contextMemberMethod tagetObjectStackPosition[stackIndex,positionIndex] argsLenth",
+            stack: "[arg1,arg2,arg3...,functionTarget]",
+            newStack: "[retVal]"
+        },
+        name: 'contextMemberMethod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const val=runtime.visitContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            const args=runtime.nextCodeNVal(3)
+            const methodName=runtime.popStackTop()
+            const array=runtime.popStackTopN(args)
+
+            runtime.pushStack(val[methodName].apply(val,array))
+            runtime.next(4)
         }
     },
     noopN: {
@@ -420,6 +456,25 @@ export default {
              target=runtime.envObject(objName)
             runtime.pushStack(target[methodName].apply(target,array))
             runtime.next(4)
+        }
+    },
+
+    envMemberIndexMethod: {
+        des: {
+            code: "envMemberMethod tagertObjectNameIndex argsLenth",
+            stack: "[arg1,arg2,arg3...,method]",
+            newStack: "[retVal]"
+        },
+        name: 'envMemberMethod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const objName=runtime.loadConstant(runtime.nextCodeVal()),
+             methodName=runtime.popStackTop(),
+             args=runtime.nextCodeNVal(2),
+             array=runtime.popStackTopN(args),
+             target=runtime.envObject(objName)
+            runtime.pushStack(target[methodName].apply(target,array))
+            runtime.next(3)
         }
     },
     loadEnv: {
