@@ -813,36 +813,36 @@ export default {
             runtime.next(2)
         }
     },
-    newLocalClassObject: {
-        des: {
-            code: "newLocalClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
-            stack: "[arg1,arg2...]",
-            newStack: "[retVal]",
-            retStack:""
-        },
-        name: 'newLocalClassObject',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
-            runtime.next(4)
-            throw new Error("not implement instruction newLocalClassObject")
-        }
-    },
-    newContextClassObject: {
-        des: {
-            code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
-            stack: "[arg1,arg2...]",
-            newStack: "[retVal]",
-            retStack:""
-        },
-        name: 'newContextClassObject',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
-            runtime.next(4)
-            throw new Error("not implement instruction newLocalClassObject")
-        }
-    },
+    // newLocalClassObject: {
+    //     des: {
+    //         code: "newLocalClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
+    //         stack: "[arg1,arg2...]",
+    //         newStack: "[retVal]",
+    //         retStack:""
+    //     },
+    //     name: 'newLocalClassObject',
+    //     val: byteCode_define_index++,
+    //     _apply:function(runtime){
+    //         //TODO 尚未实现自定义方法调用
+    //         runtime.next(4)
+    //         throw new Error("not implement instruction newLocalClassObject")
+    //     }
+    // },
+    // newContextClassObject: {
+    //     des: {
+    //         code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
+    //         stack: "[arg1,arg2...]",
+    //         newStack: "[retVal]",
+    //         retStack:""
+    //     },
+    //     name: 'newContextClassObject',
+    //     val: byteCode_define_index++,
+    //     _apply:function(runtime){
+    //         //TODO 尚未实现自定义方法调用
+    //         runtime.next(4)
+    //         throw new Error("not implement instruction newLocalClassObject")
+    //     }
+    // },
     not: {
         des: {
             code: "not",

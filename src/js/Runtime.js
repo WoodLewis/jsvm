@@ -21,7 +21,6 @@ Runtime.prototype.run=function(){
         try{
             this.codeMap[this.code[this.pointer]](this)
         }catch(e){
-            console.error(e)
             this.error=e,this.throwError()
         }
     }
@@ -200,6 +199,7 @@ function reloaceLocalVar(func){
     .replaceAll("that.stackArray","that._a")
     .replaceAll("].stackArray","]._a")
     .replaceAll("this.env","this._e")
+    .replaceAll("that.env","that._e")
     .replaceAll("this.stack","this._s")
     .replaceAll("this.pointer","this._p")
     .replaceAll("this.codeMap","this._c")

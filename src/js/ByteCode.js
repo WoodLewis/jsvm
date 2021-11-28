@@ -964,7 +964,11 @@ function loadCallExpressionMember(vm,node,args,isTop){
             loadIdentifier(vm,node.object)
         }
     }else{
-        loadCallExpressionMember(vm,node.object,false)
+        if (node.object.type === "MemberExpression"){
+            loadCallExpressionMember(vm,node.object,false)
+        }else{
+            loadValueWithTag(vm, node.object)
+        }
     }
     if(node.object.type==="Identifier"){
         if(vm.sourceCode.charAt(node.property.start-1)==='['){
