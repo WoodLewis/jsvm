@@ -1,4 +1,4 @@
-function Runtime(bytecodes,codeoffset,env){
+function Runtime(bytecodes,codeoffset,env,_t){
     this.extenals=[]
     this.errorMap=[]
     this.stack=[]
@@ -8,6 +8,7 @@ function Runtime(bytecodes,codeoffset,env){
     this.constants=[]
     this.code=bytecodes||[]
     this.env=env||{}
+    this.$this=_t||this
     this.retVal=null
     this.codeMap=[]
     this.error=null
@@ -21,6 +22,7 @@ Runtime.prototype.run=function(){
         try{
             this.codeMap[this.code[this.pointer]](this)
         }catch(e){
+            console.error(e)
             this.error=e,this.throwError()
         }
     }
@@ -38,9 +40,14 @@ Runtime.prototype.gotoEnd=function(){
     return this.pointer=this.code.length
 }
 
-
 Runtime.prototype.envObject=function(name){
-    return Object.prototype.hasOwnProperty.call(this.env,name)?this.env[name]:window[name]
+    const checkHasProperty=(_t,_p)=>  Object.prototype.hasOwnProperty.call(_t,_p);
+    return checkHasProperty(this.env,name)?
+        this.env[name]:(
+            checkHasProperty(this.$this,name)?this.$this[name]:(
+                checkHasProperty(window,name)?window[name]:undefined
+            )
+        )
 }
 
 Runtime.prototype.pushBackEnv=function(name,val){
@@ -75,11 +82,28 @@ Runtime.prototype.visitContextVal=function(stack,index){
     return this.contextMap[stack][index]
 }
 
+Runtime.prototype.visitContextValSelective=function($a){
+    for(let i=0;$a[i];++i){
+        if(this.contextMap[$a[i][0]].length>$a[i][1]){
+            return [1,this.contextMap[$a[i][0]][$a[i][1]]]
+        }
+    }
+    return [0,null]
+}
+
 Runtime.prototype.storeContextVal=function(stack,index,val){
     this.contextMap[stack][index]=val
 }
 
-
+Runtime.prototype.storeContextVarSelective=function($a,val){
+    for(let i=0;$a[i];++i){
+        if(this.contextMap[$a[i][0]].length>$a[i][1]){
+            this.contextMap[$a[i][0]][$a[i][1]]=val
+            return $a[i]
+        }
+    }
+    return null
+}
 Runtime.prototype.pushStack=function(obj){
     this.stack[this.stack.length-1].push(obj)
 }
@@ -122,6 +146,10 @@ Runtime.prototype.loadCodeArray=function(start,end){
 
 Runtime.prototype.next=function(len){
     this.pointer+=len
+}
+
+Runtime.prototype.loadThis=function(){
+    return this.$this
 }
 
 Runtime.prototype.goto=function(index){
@@ -200,6 +228,8 @@ function reloaceLocalVar(func){
     .replaceAll("].stackArray","]._a")
     .replaceAll("this.env","this._e")
     .replaceAll("that.env","that._e")
+    .replaceAll("this.$this","this.$t")
+    .replaceAll("that.$this","that.$t")
     .replaceAll("this.stack","this._s")
     .replaceAll("this.pointer","this._p")
     .replaceAll("this.codeMap","this._c")

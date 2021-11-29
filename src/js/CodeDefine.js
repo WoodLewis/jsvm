@@ -222,6 +222,35 @@ export default {
             runtime.next(3)
         }
     },
+    initVarIfNeed: {
+        des: {
+            code: "initVarIfNeed tagetObjectStackPosition[stackIndex,positionIndex]",
+            stack: "[arg]",
+            newStack: "[]"
+        },
+        name: 'initVarIfNeed',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            if(runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))===undefined){
+                runtime.storeStackValue(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2),undefined)
+            }
+            
+            runtime.next(3)
+        }
+    },
+    load2NumAsArray: {
+        des: {
+            code: "load2NumAsArray n1 n2",
+            stack: "[]",
+            newStack: "[[n1,b2]]"
+        },
+        name: 'load2NumAsArray',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack([runtime.nextCodeNVal(1),runtime.nextCodeNVal(2)])
+            runtime.next(3)
+        }
+    },
     storeContextVar: {
         des: {
             code: "storeContextVar tagetObjectStackPosition[stackIndex,positionIndex]",
@@ -234,6 +263,20 @@ export default {
             const val=runtime.popStackTop()
             runtime.storeContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2),val)
             runtime.next(3)
+        }
+    },
+    storeContextVarSelective: {
+        des: {
+            code: "storeContextVarSelective tagertObjectNameIndex",
+            stack: "[arg,arr]",
+            newStack: "[]"
+        },
+        name: 'storeContextVarSelective',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const selective=runtime.popStackTop(),val=runtime.popStackTop()
+            runtime.storeContextVarSelective(selective,val)?1:(runtime.pushBackEnv(runtime.loadConstant(runtime.nextCodeVal()),val))
+            runtime.next(2)
         }
     },
     newClassObject: {
@@ -326,6 +369,28 @@ export default {
             runtime.next(5)
         }
     },
+    contextMemberMethodSelective: {
+        des: {
+            code: "contextMemberMethodSelective functionNameIndex argsLenth nameIdex",
+            stack: "[arg1,arg2,arg3...]",
+            newStack: "[retVal]"
+        },
+        name: 'contextMemberMethodSelective',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const methodName=runtime.loadConstant(runtime.nextCodeNVal(1)),
+            args=runtime.nextCodeNVal(2),
+            alterName=runtime.loadConstant(runtime.nextCodeNVal(3)),
+            selective=runtime.popStackTop()
+
+            const _v=runtime.visitContextValSelective(selective)
+        
+            const array=runtime.popStackTopN(args),target=_v[0]?_v[1]:runtime.envObject(alterName)
+
+            runtime.pushStack(target[methodName].apply(target,array))
+            runtime.next(4)
+        }
+    },
     contextMemberIndexMethod: {
         des: {
             code: "contextMemberMethod tagetObjectStackPosition[stackIndex,positionIndex] argsLenth",
@@ -344,6 +409,29 @@ export default {
             runtime.next(4)
         }
     },
+    contextMemberIndexMethodSelective: {
+        des: {
+            code: "contextMemberMethod  argsLenth nameIndex",
+            stack: "[arg1,arg2,arg3...,functionTarget]",
+            newStack: "[retVal]"
+        },
+        name: 'contextMemberMethod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const args=runtime.nextCodeNVal(1),
+                alterName=runtime.loadConstant(runtime.nextCodeNVal(2)),
+                methodName=runtime.popStackTop(),
+                selective=runtime.popStackTop()
+
+            const _v=runtime.visitContextValSelective(selective)
+           
+            const array=runtime.popStackTopN(args),target=_v[0]?_v[1]:runtime.envObject(alterName)
+
+            runtime.pushStack(target[methodName].apply(target,array))
+            runtime.next(3)
+        }
+    },
+
     noopN: {
         des: {
             code: "noopN n",
@@ -437,6 +525,19 @@ export default {
         val: byteCode_define_index++,
         _apply:function(runtime){
             runtime.pushStack(undefined)
+            runtime.next(1)
+        }
+    },
+    loadWindow: {
+        des: {
+            code: "loadWindow",
+            stack: "[]",
+            newStack: "[window]"
+        },
+        name: 'loadWindow',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(window)
             runtime.next(1)
         }
     },
@@ -828,21 +929,36 @@ export default {
     //         throw new Error("not implement instruction newLocalClassObject")
     //     }
     // },
-    // newContextClassObject: {
-    //     des: {
-    //         code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
-    //         stack: "[arg1,arg2...]",
-    //         newStack: "[retVal]",
-    //         retStack:""
-    //     },
-    //     name: 'newContextClassObject',
-    //     val: byteCode_define_index++,
-    //     _apply:function(runtime){
-    //         //TODO 尚未实现自定义方法调用
-    //         runtime.next(4)
-    //         throw new Error("not implement instruction newLocalClassObject")
-    //     }
-    // },
+    newContextClassObject: {
+        des: {
+            code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
+            stack: "[arg1,arg2...]",
+            newStack: "[retVal]",
+            retStack:""
+        },
+        name: 'newContextClassObject',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            //TODO 尚未实现自定义方法调用
+            runtime.next(4)
+            throw new Error("not implement instruction newLocalClassObject")
+        }
+    },
+    newContextClassObjectSeelct: {
+        des: {
+            code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen alterName",
+            stack: "[arg1,arg2...]",
+            newStack: "[retVal]",
+            retStack:""
+        },
+        name: 'newContextClassObject',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            //TODO 尚未实现自定义方法调用
+            runtime.next(4)
+            throw new Error("not implement instruction newLocalClassObject")
+        }
+    },
     not: {
         des: {
             code: "not",
@@ -1037,16 +1153,32 @@ export default {
     },
     loadContextVal: {
         des: {
-            code: "loadContextVal tagetObjectStackPosition[stackIndex,positionIndex]",
+            code: "loadContextVal  tagetObjectStackPosition[stackIndex,positionIndex]",
             stack: "[]",
             newStack: "[varVal]"
         },
         name: 'loadContextVal',
         val: byteCode_define_index++,
         _apply:function(runtime){
+            
             const val=runtime.visitContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
             runtime.pushStack(val)
             runtime.next(3)
+        }
+    },
+    loadContextValSelective: {
+        des: {
+            code: "loadContextValSelective tagertObjectNameIndex",
+            stack: "[[]...]",
+            newStack: "[varVal]"
+        },
+        name: 'loadContextValSelective',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const selective=runtime.popStackTop(),objName=runtime.loadConstant(runtime.nextCodeVal())
+            const _v=runtime.visitContextValSelective(selective)
+            runtime.pushStack(_v[0]?_v[1]:runtime.envObject(objName))
+            runtime.next(2)
         }
     },
     byteMovRight: {
