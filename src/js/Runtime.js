@@ -1,14 +1,13 @@
-function Runtime(bytecodes,codeoffset,env,_t){
+function Runtime(bytecodes,codeoffset,env,target){
     this.extenals=[]
     this.errorMap=[]
     this.stack=[]
     this.stackArray=[]
     this.pointer=0
     this.codeOffset=codeoffset||0
-    this.constants=[]
     this.code=bytecodes||[]
     this.env=env||{}
-    this.$this=_t||this
+    this.$this=target||this
     this.retVal=null
     this.codeMap=[]
     this.error=null
@@ -22,7 +21,6 @@ Runtime.prototype.run=function(){
         try{
             this.codeMap[this.code[this.pointer]](this)
         }catch(e){
-            console.error(e)
             this.error=e,this.throwError()
         }
     }
@@ -39,19 +37,21 @@ Runtime.prototype.retValue=function(retVal){
 Runtime.prototype.gotoEnd=function(){
     return this.pointer=this.code.length
 }
+Runtime.prototype.checkHasProperty=function(_t,_p){
+    return Object.prototype.hasOwnProperty.call(_t,_p);
+}
 
 Runtime.prototype.envObject=function(name){
-    const checkHasProperty=(_t,_p)=>  Object.prototype.hasOwnProperty.call(_t,_p);
-    return checkHasProperty(this.env,name)?
+    return this.checkHasProperty(this.env,name)?
         this.env[name]:(
-            checkHasProperty(this.$this,name)?this.$this[name]:(
-                checkHasProperty(window,name)?window[name]:undefined
+            this.checkHasProperty(this.$this,name)?this.$this[name]:(
+                this.checkHasProperty(window,name)?window[name]:undefined
             )
         )
 }
 
 Runtime.prototype.pushBackEnv=function(name,val){
-    Object.prototype.hasOwnProperty.call(this.env,name)?(this.env[name]=val):(window[name]=val)
+    this.checkHasProperty(this.env,name)?(this.env[name]=val):(window[name]=val)
 }
 
 Runtime.prototype.newStack=function(){
@@ -223,44 +223,40 @@ function replaceBlank(str){
 }
 
 function reloaceLocalVar(func){
-    return func.replaceAll("this.stackArray","this._a")
-    .replaceAll("that.stackArray","that._a")
-    .replaceAll("].stackArray","]._a")
-    .replaceAll("this.env","this._e")
-    .replaceAll("that.env","that._e")
-    .replaceAll("this.$this","this.$t")
-    .replaceAll("that.$this","that.$t")
-    .replaceAll("this.stack","this._s")
-    .replaceAll("this.pointer","this._p")
-    .replaceAll("this.codeMap","this._c")
-    .replaceAll("that.codeMap","that._c")
-    .replaceAll("nr.codeMap","nr._c")
-    .replaceAll("this.codeOffset","this._o")
-    .replaceAll("this.errorMap","this._em")
-    .replaceAll("this.error","this.$e")
-    .replaceAll("this.code","this._$")
-    .replaceAll("this.retVal","this.$")
-    .replaceAll("this.accesstors","this.$a")
-    .replaceAll("that.accesstors","that.$a")
-    .replaceAll("nr.accesstors","nr.$a")
-    .replaceAll("this.contextMap","this.$c")
-    .replaceAll("that.contextMap","that.$c")
-    .replaceAll("stack","$0")
-    .replaceAll("index","$1")
-    .replaceAll("name","$2")
-    .replaceAll("retVal","$$")
-    .replaceAll("val","$_")
-    .replaceAll("that","$t")
+    return func
+        .replace(/(this|that|nr)\.extenals\s*=\s*\[\];?/g,"")
+        .replace(/(this|that|nr|\)|\])\.stackArray/g,"$1._a")
+        .replace(/(this|that|nr|\)|\])\.stack/g,"$1._s")
+        .replace(/(this|that|nr|\)|\])\.env/g,"$1._e")
+        .replace(/(this|that|nr|\)|\])\.\$this/g,"$1._t")
+        .replace(/(this|that|nr|\)|\])\.pointer/g,"$1._p")
+        .replace(/(this|that|nr|\)|\])\.codeMap/g,"$1._c")
+        .replace(/(this|that|nr|\)|\])\.codeOffset/g,"$1._o")
+        .replace(/(this|that|nr|\)|\])\.errorMap/g,"$1._m")
+        .replace(/(this|that|nr|\)|\])\.error/g,"$1.$e")
+        .replace(/(this|that|nr|\)|\])\.code/g,"$1._")
+        .replace(/(this|that|nr|\)|\])\.retVal/g,"$1.$")
+        .replace(/(this|that|nr|\)|\])\.accesstors/g,"$1.$_")
+        .replace(/(this|that|nr|\)|\])\.contextMap/g,"$1.$c")
+        .replaceAll("stack","$0")
+        .replaceAll("index","$1")
+        .replaceAll("name","$2")
+        .replaceAll("retVal","$$")
+        .replaceAll("val","$_")
+        .replaceAll("that","$t")
+        // .replaceAll("checkHasProperty","_")
 }
 
-Runtime.prototype.toString=function(){
+Runtime.prototype.declearation=function(){
     const prototypes=Object.getOwnPropertyNames(Runtime.prototype)
     const arr=[]
     for(let i=0;prototypes[i];++i){
         switch(prototypes[i]){
             case "constructor":
             case "toString":
-            case "run":    
+            case "run":
+            case "declearation": 
+            case "newInstance":   
                 break;
             default: arr.push(prototypes[i]);break;   
         }
@@ -268,16 +264,16 @@ Runtime.prototype.toString=function(){
     const replaceMethods=function(str){
         for(let i=0;arr[i];++i){
             str=str
-                .replaceAll("this."+arr[i]+"(","this.__"+i+"(")
-                .replaceAll("runtime."+arr[i]+"(","runtime.__"+i+"(")
-                .replaceAll("nr."+arr[i]+"(","nr.__"+i+"(")
-                .replaceAll("v."+arr[i]+"(","v.__"+i+"(")
+                .replaceAll("this."+arr[i]+"(","this.__"+i.toString(32)+"(")
+                .replaceAll("runtime."+arr[i]+"(","runtime.__"+i.toString(32)+"(")
+                .replaceAll("nr."+arr[i]+"(","nr.__"+i.toString(32)+"(")
+                .replaceAll("v."+arr[i]+"(","v.__"+i.toString(32)+"(")
         }
         return str
     }
-    let code=this.code
+ 
     let codeMap=this.codeMap.toString()
-        .replace(/function\s+_apply\(runtime\)/g,"r=>")
+        .replace(/function\s+_apply\(runtime\)/g,"r=>");
     //替换一些常用的变量值   
     codeMap=replaceMethods(replaceBlank(codeMap)).replaceAll("runtime.__","r.__")
         .replaceAll("index","_i")
@@ -291,48 +287,51 @@ Runtime.prototype.toString=function(){
         .replaceAll("args","___")
         .replaceAll("array","_2")
         .replaceAll("val","_3")
+        .replaceAll("alterName","_4")
+        .replaceAll("selective","_5")
         .replace(/var\s+([_\w]+)=([^;]+);var\s+([_\w]+)=/g,"var $1=$2,$3=")
         .replace(/if\(([^()]+)\)\{([^}]+)\}else\{([^}]+)\}/g,"($1)?($2):($3);")
     let runtimeMethods="([";
     for(let i=0;arr[i];++i){
-        runtimeMethods+="{__"+i+":"+
+        runtimeMethods+="{__"+i.toString(32)+":"+
             reloaceLocalVar(replaceMethods(replaceBlank(Runtime.prototype[arr[i]].toString())))
             +"},"
     }
     runtimeMethods+="{run:"+reloaceLocalVar(replaceBlank(replaceMethods(Runtime.prototype.run.toString())))+"}]).forEach(v=>{for(var i in v){Runtime.prototype[i]=v[i]}})"
 
    
-    const declearation= `function Runtime(_,__,___){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
+    // const declearation= `function Runtime(_,__,___,$){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this.$t=$||this,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
+    return reloaceLocalVar(Runtime.prototype.constructor.toString())
+            .replace(/[\n\r\t\s]*([{}[\]}();]+)[\n\r\t\s]*/g,"$1")//去除[]{}();的前后空白
+            .replaceAll("bytecodes","_")
+            .replaceAll("codeoffset","$")
+            .replaceAll("env","__")
+            .replaceAll("target","$_")
+            .replace(/this\._c\s*=\s*\[\]/g,"this._c=["+codeMap+"]")
+            +";"+runtimeMethods
+}
 
+Runtime.prototype.newInstance=function(){
+    let code=this.code
     let proxy="";
     if(this.extenals&&this.extenals.length){
-        const getter=this.extenals.map(v=>
-    `if(property==="${v}"){
-        return window["${v}"]//此处请按照实际情况处理内置代码需要获取变量${v}时情况
-    }`).join("\n")
-        const setter=this.extenals.map(v=>
-    `if(property==="${v}"){
-        window["${v}"]=value//此处请按照实际情况处理内置代码需要设置变量${v}的值时情况,如果确信你的代码中没有对此值进行赋值操作，可忽略此set方法
-    }`).join("\n")    
-        proxy=`
-//你的代码中使用了未定义的变量值，为代码能正确运行，请手工完成下面的代码，设置这些值的获取和赋值方法
-const envProxy=new Proxy({},{
-    get(target,property){
-    ${getter}
-    return undefined
-    },
+        const setter=this.extenals.map(v=>`case "${v}":window["${v}"]=value;break;//此处请按照实际情况处理内置代码需要设置变量${v}的值时情况,如果确信你的代码中没有对此值进行赋值操作，可忽略此set方法`).join("\n")    
+        proxy=`//你的代码中使用了未定义的变量值，为代码能正确运行，请手工完成下面的代码，设置这些值的获取和赋值方法
+const envProxy=new Proxy({${this.extenals.map(v=>v+":window[\""+v+"\"]").join(",")}},{
     set(target,property,value){
-    ${setter}else{
-        target[property]=value
-    }
+        switch(property){
+            ${setter}
+            default:target[property]=value;
+        }
     return true;
     }
-})
-       `     
+})`     
     }
+    return "const bytecodes=["+code+"]\n"+proxy+"\nnew Runtime(bytecodes,0"+(proxy?",envProxy":"")+").run()"
+}
 
-
-    return declearation+"\n const bytecodes=["+code+"]\n"+proxy+"\nnew Runtime(bytecodes,0"+(proxy?",envProxy":"")+").run()"
+Runtime.prototype.toString=function(){
+    return this.declearation()+"\n"+this.newInstance()
 }
 
 

@@ -14,80 +14,6 @@ export default {
             runtime.next(1)
         }
     },
-    add: {
-        des: {
-            code: "add",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'add',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            runtime.pushStack(left+right)
-            runtime.next(1)
-        }
-    },
-    min: {
-        des: {
-            code: "min",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'min',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            runtime.pushStack(left-right)
-            runtime.next(1)
-        }
-    },
-    mul: {
-        des: {
-            code: "mul",
-            stack: "[arg1,arg2]",
-        },
-        name: 'mul',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            runtime.pushStack(left*right)
-            runtime.next(1)
-        }
-    },
-    div: {
-        des: {
-            code: "div",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'div',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            runtime.pushStack(left/right)
-            runtime.next(1)
-        }
-    },
-    mod: {
-        des: {
-            code: "mod",
-            stack: "[arg1,arg2]",
-            newStack: "[retVal]"
-        },
-        name: 'mod',
-        val: byteCode_define_index++,
-        _apply:function(runtime){
-            const right=runtime.popStackTop()
-            const left=runtime.popStackTop()
-            runtime.pushStack(left%right)
-            runtime.next(1)
-        }
-    },
     eqJmp: {
         des: {
             code: "eqJmp codeIndex",
@@ -152,6 +78,21 @@ export default {
             runtime.next(1)
         }
     },
+    add: {
+        des: {
+            code: "add",
+            stack: "[arg1,arg2]",
+            newStack: "[retVal]"
+        },
+        name: 'add',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop()
+            const left=runtime.popStackTop()
+            runtime.pushStack(left+right)
+            runtime.next(1)
+        }
+    },
     mkArr: {
         des: {
             code: "mkArr argsLenth",
@@ -195,6 +136,19 @@ export default {
             runtime.next(2)
         }
     },
+    loadThis:{
+        des: {
+            code: "loadThis",
+            stack: "[]",
+            newStack: "[this]"
+        },
+        name: 'loadThis',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.loadThis())
+            runtime.next(1)
+        }
+    },
     newStack: {
         des: {
             code: "newStack",
@@ -220,6 +174,21 @@ export default {
             const val=runtime.popStackTop()
             runtime.storeStackValue(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2),val)
             runtime.next(3)
+        }
+    },
+    min: {
+        des: {
+            code: "min",
+            stack: "[arg1,arg2]",
+            newStack: "[retVal]"
+        },
+        name: 'min',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop()
+            const left=runtime.popStackTop()
+            runtime.pushStack(left-right)
+            runtime.next(1)
         }
     },
     initVarIfNeed: {
@@ -251,6 +220,35 @@ export default {
             runtime.next(3)
         }
     },
+    mul: {
+        des: {
+            code: "mul",
+            stack: "[arg1,arg2]",
+        },
+        name: 'mul',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop()
+            const left=runtime.popStackTop()
+            runtime.pushStack(left*right)
+            runtime.next(1)
+        }
+    },
+    div: {
+        des: {
+            code: "div",
+            stack: "[arg1,arg2]",
+            newStack: "[retVal]"
+        },
+        name: 'div',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop()
+            const left=runtime.popStackTop()
+            runtime.pushStack(left/right)
+            runtime.next(1)
+        }
+    },
     storeContextVar: {
         des: {
             code: "storeContextVar tagetObjectStackPosition[stackIndex,positionIndex]",
@@ -277,6 +275,21 @@ export default {
             const selective=runtime.popStackTop(),val=runtime.popStackTop()
             runtime.storeContextVarSelective(selective,val)?1:(runtime.pushBackEnv(runtime.loadConstant(runtime.nextCodeVal()),val))
             runtime.next(2)
+        }
+    },
+    mod: {
+        des: {
+            code: "mod",
+            stack: "[arg1,arg2]",
+            newStack: "[retVal]"
+        },
+        name: 'mod',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const right=runtime.popStackTop()
+            const left=runtime.popStackTop()
+            runtime.pushStack(left%right)
+            runtime.next(1)
         }
     },
     newClassObject: {
@@ -761,6 +774,19 @@ export default {
             runtime.next(1)
         }
     },
+    neq: {
+        des: {
+            code: "eq",
+            stack: "[var1,var2]",
+            newStack: "[testResult]"
+        },
+        name: 'eq',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(runtime.popStackTop()!==runtime.popStackTop())
+            runtime.next(1)
+        }
+    },
     instanceof: {
         des: {
             code: "instanceof",
@@ -914,21 +940,21 @@ export default {
             runtime.next(2)
         }
     },
-    // newLocalClassObject: {
-    //     des: {
-    //         code: "newLocalClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
-    //         stack: "[arg1,arg2...]",
-    //         newStack: "[retVal]",
-    //         retStack:""
-    //     },
-    //     name: 'newLocalClassObject',
-    //     val: byteCode_define_index++,
-    //     _apply:function(runtime){
-    //         //TODO 尚未实现自定义方法调用
-    //         runtime.next(4)
-    //         throw new Error("not implement instruction newLocalClassObject")
-    //     }
-    // },
+    newLocalClassObject: {
+        des: {
+            code: "newLocalClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",
+            stack: "[arg1,arg2...]",
+            newStack: "[retVal]",
+            retStack:""
+        },
+        name: 'newLocalClassObject',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            //TODO 尚未实现自定义方法调用
+            runtime.next(4)
+            throw new Error("not implement instruction newLocalClassObject")
+        }
+    },
     newContextClassObject: {
         des: {
             code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen",

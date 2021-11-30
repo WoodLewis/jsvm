@@ -4,7 +4,7 @@
 <script>
 import * as acorn from "acorn";
 
-import jsvm from "../js/ByteCode";
+import jsvm from "../js/Shiye";
 
 
 
@@ -332,7 +332,7 @@ export default {
     const vm=jsvm.accept(jsCode,node)
     console.log(vm);
     vm.localMethods.forEach(v=>console.log(v))
-    const runtime=vm.compile()
+    const runtime=vm.translate()
     console.log(runtime)
     const strRuntime=runtime.toString()
     // console.log(strRuntime);
