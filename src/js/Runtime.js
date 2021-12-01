@@ -236,6 +236,7 @@ function reloaceLocalVar(func){
         .replace(/(this|that|nr)\.extenals\s*=\s*\[\];?/g,"")
         .replace(/(this|that|nr|\)|\])\.stackArray/g,"$1._a")
         .replace(/(this|that|nr|\)|\])\.stack/g,"$1._s")
+        .replace(/(this|that|nr|\)|\])\.stash/g,"$1.__")
         .replace(/(this|that|nr|\)|\])\.env/g,"$1._e")
         .replace(/(this|that|nr|\)|\])\.\$this/g,"$1._t")
         .replace(/(this|that|nr|\)|\])\.pointer/g,"$1._p")
