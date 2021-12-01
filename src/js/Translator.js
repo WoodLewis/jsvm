@@ -1,7 +1,7 @@
 import bydecodeDef from './CodeDefine'
 import Runtime from "./Runtime"
 
-class __SHIYE {
+class __Translator {
     constructor() {
         this.sourceCode=null
         this.sourceCodePostionOffset=0
@@ -44,7 +44,7 @@ class __Tag {
     }
 }
 
-__SHIYE.prototype.logExtenals = function (name) {
+__Translator.prototype.logExtenals = function (name) {
     for(let i=0;this.extenals[i];++i){
         if(this.extenals[i]===name){
             return i;
@@ -54,14 +54,14 @@ __SHIYE.prototype.logExtenals = function (name) {
     return [-1, -1]
 }
 
-__SHIYE.prototype.newBlock = function () {
+__Translator.prototype.newBlock = function () {
     this.blockMethods.push([])
     this.vars.push({})
     this.map.push(0)
     return [-1, -1]
 }
 
-__SHIYE.prototype.qiutBlock = function () {
+__Translator.prototype.qiutBlock = function () {
     const arr=this.blockMethods.pop()
     let codeIncrease=0;
     for(let i=0;arr[i];++i){
@@ -72,7 +72,7 @@ __SHIYE.prototype.qiutBlock = function () {
     this.map.pop()
     return [-1, -1]
 }
-__SHIYE.prototype.findVar = function (name) {
+__Translator.prototype.findVar = function (name) {
     for (let i = this.vars.length - 1; i >= 0; --i) {
         if (this.vars[i][name] != undefined) {
             return this.vars[i][name]
@@ -81,7 +81,7 @@ __SHIYE.prototype.findVar = function (name) {
     return [-1, -1]
 }
 
-__SHIYE.prototype.addConstr = function (val) {
+__Translator.prototype.addConstr = function (val) {
     for (let i = 0; this.consts[i]; ++i) {
         if (this.consts[i] === val) {
             return i;
@@ -91,7 +91,7 @@ __SHIYE.prototype.addConstr = function (val) {
     return this.consts.length - 1
 }
 
-__SHIYE.prototype.addVar = function (name) {
+__Translator.prototype.addVar = function (name) {
 
     const stack = this.vars.length - 1
     const index = this.map[stack]
@@ -102,7 +102,7 @@ __SHIYE.prototype.addVar = function (name) {
     return [stack, index]
 }
 
-__SHIYE.prototype.findVar = function (name) {
+__Translator.prototype.findVar = function (name) {
     for (let i = this.vars.length - 1; i >= 0; --i) {
         if (this.vars[i][name] != undefined) {
             return this.vars[i][name]
@@ -111,7 +111,7 @@ __SHIYE.prototype.findVar = function (name) {
     return [-1,-1]
 }
 
-__SHIYE.prototype.findContextVar = function (name) {
+__Translator.prototype.findContextVar = function (name) {
     if(this.contextVars[name]){
         return this.contextVars[name]
     }else if(this.alterContextVars[name]){
@@ -161,7 +161,7 @@ __SHIYE.prototype.findContextVar = function (name) {
     return alternative.length?[-2,this.alterContextVars[name]]:[-1,-1]
 }
 
-__SHIYE.prototype.translate = function () {
+__Translator.prototype.translate = function () {
    let data=[]
    const codePositonTag=[]
    const codeMap=[]
@@ -331,7 +331,7 @@ function stringToBytes(str){
 }
 
 function accept(sourcecode,node) {
-    const vm = new __SHIYE();
+    const vm = new __Translator();
     vm.sourceCode=sourcecode
     vm.newBlock()
     const startPosition=checkCurrentIndex(vm)
@@ -357,7 +357,7 @@ function accept(sourcecode,node) {
 
 
 function acceptFunction(parent,node,anccesstorsPostions) {
-    const vm = new __SHIYE();
+    const vm = new __Translator();
     vm.type="Function"
     const startCode=node.start-parent.sourceCodePostionOffset
     const endCode=node.end-parent.sourceCodePostionOffset
@@ -556,7 +556,7 @@ function loadBlockBody(vm,body, blockStartTag, blockEndTag){
    
 }
 
-__SHIYE.prototype.takeEffect=function (){
+__Translator.prototype.takeEffect=function (){
     while(this.extEffect&&this.extEffect.length){
         this.code=this.code.concat(this.extEffect.pop())
     }
@@ -615,6 +615,12 @@ function defineFunction(vm,record){
     return imports.length+3
 }
 
+/**
+ * 函数在调用时应该能访问调用闭包内当前所有的变量，但需要注意的是，如果变量在函数声明前定义，则可以直接访问
+ * 如果变量在函数声明后才定义，则应该判断此次调用时，变量是否已经定义了，如果还没有定义，则应该继续向上查找
+ * @param {*} vm 
+ * @param {*} funcNode 
+ */
 function defFunctionPre(vm,funcNode){
     //记录当前允许访问的地址
     function currentVarMap(v){

@@ -91,7 +91,6 @@
   
     var createOutputMethod = function (outputType, bits) {
       return function (message) {
-        console.log("message is "+message+", outputType="+outputType+", bits="+bits)
         return new Sha512(bits, true).update(message)[outputType]();
       };
     };
@@ -133,10 +132,6 @@
     };
   
     function Sha512(bits, sharedMemory) {
-        console.log(this)
-        console.log("---bits---sharedMemory---")
-        console.log(bits)
-        console.log(sharedMemory)
       if (sharedMemory) {
         blocks[0] = blocks[1] = blocks[2] = blocks[3] = blocks[4] =
         blocks[5] = blocks[6] = blocks[7] = blocks[8] =
@@ -234,32 +229,20 @@
       if (type !== 'string') {
         if (type === 'object') {
           if (message === null) {
-            console.log("error-232-")  
-            console.log(message)  
             throw new Error(INPUT_ERROR);
           } else if (ARRAY_BUFFER && message.constructor === ArrayBuffer) {
             message = new Uint8Array(message);
           } else if (!Array.isArray(message)) {
             if (!ARRAY_BUFFER || !ArrayBuffer.isView(message)) {
-                 console.log("error-239-")  
-                  console.log(message)  
               throw new Error(INPUT_ERROR);
             }
           }
         } else {
-          console.log("error-245-")  
-          console.log(message)  
           throw new Error(INPUT_ERROR);
         }
         notString = true;
       }
-      console.log("this.h0h="+this.h0h)
-      console.log("------mesage-------")
-      console.log(message)
       var code, index = 0, i, length = message.length, blocks = this.blocks;
-  
-      console.log("-------this.blocks-------")
-      console.log(this.blocks.map(v=>v))
   
       while (index < length) {
         if (this.hashed) {
@@ -274,27 +257,16 @@
           blocks[25] = blocks[26] = blocks[27] = blocks[28] =
           blocks[29] = blocks[30] = blocks[31] = blocks[32] = 0;
         }
-         console.log("-------blocks%"+index+"%hashed-------")
-          console.log(blocks.map(v=>v))
   
         if(notString) {
           for (i = this.start; index < length && i < 128; ++index) {
             blocks[i >> 2] |= message[index] << SHIFT[i++ & 3];
           }
-           console.log("-------blocks%"+index+"%notString-------")
-          console.log(blocks.map(v=>v))
         } else {
           for (i = this.start; index < length && i < 128; ++index) {
             code = message.charCodeAt(index);
-            console.log("-------blocks%"+index+"%string%"+i+"-------code="+code)
             if (code < 0x80) {
-              console.log("i >> 2 ="+(i >> 2))  
-              console.log("SHIFT[i++ & 3] ="+(SHIFT[i & 3]))  
-              console.log("code << SHIFT[i++ & 3] ="+(code << SHIFT[(i+1) & 3]))  
-              console.log("blocks[i >> 2] ="+(blocks[i >> 2]))  
               blocks[i >> 2] |= code << SHIFT[i++ & 3];
-              console.log("now i="+i)
-              console.log("blocks[i >> 2] ="+(blocks[i >> 2]))  
             } else if (code < 0x800) {
               blocks[i >> 2] |= (0xc0 | (code >> 6)) << SHIFT[i++ & 3];
               blocks[i >> 2] |= (0x80 | (code & 0x3f)) << SHIFT[i++ & 3];
@@ -309,11 +281,7 @@
               blocks[i >> 2] |= (0x80 | ((code >> 6) & 0x3f)) << SHIFT[i++ & 3];
               blocks[i >> 2] |= (0x80 | (code & 0x3f)) << SHIFT[i++ & 3];
             }
-          console.log("-------blocks%"+index+"%string%"+i+"-------")
-          console.log(blocks.map(v=>v))
           }
-          console.log("-------blocks%"+index+"%string-------")
-          console.log(blocks.map(v=>v))
         }
   
         this.lastByteIndex = i;
@@ -331,9 +299,6 @@
         this.hBytes += this.bytes / 4294967296 << 0;
         this.bytes = this.bytes % 4294967296;
       }
-      console.log("this.h0h="+this.h0h)
-      console.log("-------this.blocks-------")
-      console.log(this.blocks.map(v=>v))
       return this;
     };
   
@@ -681,9 +646,6 @@
         h4h = this.h4h, h4l = this.h4l, h5h = this.h5h, h5l = this.h5l,
         h6h = this.h6h, h6l = this.h6l, h7h = this.h7h, h7l = this.h7l,
         bits = this.bits;
-      
-      console.log("this.h0h="+this.h0h)
-      console.log(this.blocks.map(v=>v))
   
       var hex = HEX_CHARS[(h0h >> 28) & 0x0F] + HEX_CHARS[(h0h >> 24) & 0x0F] +
         HEX_CHARS[(h0h >> 20) & 0x0F] + HEX_CHARS[(h0h >> 16) & 0x0F] +
@@ -713,16 +675,12 @@
         HEX_CHARS[(h3h >> 20) & 0x0F] + HEX_CHARS[(h3h >> 16) & 0x0F] +
         HEX_CHARS[(h3h >> 12) & 0x0F] + HEX_CHARS[(h3h >> 8) & 0x0F] +
         HEX_CHARS[(h3h >> 4) & 0x0F] + HEX_CHARS[h3h & 0x0F];
-      
-      console.log("hex0=+hex")
-  
       if (bits >= 256) {
         hex += HEX_CHARS[(h3l >> 28) & 0x0F] + HEX_CHARS[(h3l >> 24) & 0x0F] +
           HEX_CHARS[(h3l >> 20) & 0x0F] + HEX_CHARS[(h3l >> 16) & 0x0F] +
           HEX_CHARS[(h3l >> 12) & 0x0F] + HEX_CHARS[(h3l >> 8) & 0x0F] +
           HEX_CHARS[(h3l >> 4) & 0x0F] + HEX_CHARS[h3l & 0x0F];
       }
-      console.log("hex1=+hex")
       if (bits >= 384) {
         hex += HEX_CHARS[(h4h >> 28) & 0x0F] + HEX_CHARS[(h4h >> 24) & 0x0F] +
           HEX_CHARS[(h4h >> 20) & 0x0F] + HEX_CHARS[(h4h >> 16) & 0x0F] +
@@ -741,7 +699,6 @@
           HEX_CHARS[(h5l >> 12) & 0x0F] + HEX_CHARS[(h5l >> 8) & 0x0F] +
           HEX_CHARS[(h5l >> 4) & 0x0F] + HEX_CHARS[h5l & 0x0F];
       }
-       console.log("hex2=+hex")
       if (bits == 512) {
         hex += HEX_CHARS[(h6h >> 28) & 0x0F] + HEX_CHARS[(h6h >> 24) & 0x0F] +
           HEX_CHARS[(h6h >> 20) & 0x0F] + HEX_CHARS[(h6h >> 16) & 0x0F] +
@@ -760,7 +717,6 @@
           HEX_CHARS[(h7l >> 12) & 0x0F] + HEX_CHARS[(h7l >> 8) & 0x0F] +
           HEX_CHARS[(h7l >> 4) & 0x0F] + HEX_CHARS[h7l & 0x0F];
       }
-       console.log("hex3=+hex")
       return hex;
     };
   
@@ -865,21 +821,15 @@
       if (type !== 'string') {
         if (type === 'object') {
           if (key === null) {
-              console.log("error-830-")  
-                  console.log(message)  
             throw new Error(INPUT_ERROR);
           } else if (ARRAY_BUFFER && key.constructor === ArrayBuffer) {
             key = new Uint8Array(key);
           } else if (!Array.isArray(key)) {
             if (!ARRAY_BUFFER || !ArrayBuffer.isView(key)) {
-                  console.log("error-837-")  
-                  console.log(message)  
               throw new Error(INPUT_ERROR);
             }
           }
         } else {
-            console.log("error-843-")  
-                  console.log(message)  
           throw new Error(INPUT_ERROR);
         }
         notString = true;

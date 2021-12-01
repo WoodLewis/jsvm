@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import shiye from "./js/Shiye";
+import shiye from "./js/Translator";
 import * as MrHuang from "acorn";
 import CodeViewer from './components/CodeViewer.vue'
 

@@ -4,7 +4,7 @@
 <script>
 import * as acorn from "acorn";
 
-import jsvm from "../js/Shiye";
+import jsvm from "../js/Translator";
 
 
 
