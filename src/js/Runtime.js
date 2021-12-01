@@ -2,6 +2,7 @@ function Runtime(bytecodes,codeoffset,env,target){
     this.extenals=[]
     this.errorMap=[]
     this.stack=[]
+    this.stash=[]
     this.stackArray=[]
     this.pointer=0
     this.codeOffset=codeoffset||0
@@ -25,6 +26,7 @@ Runtime.prototype.run=function(){
         }
     }
     if(this.error){
+        console.error(this.error)
         throw new Error(this.error.name+":"+this.error.message)
     }
     return this.retVal
@@ -32,6 +34,13 @@ Runtime.prototype.run=function(){
 
 Runtime.prototype.retValue=function(retVal){
     return this.retVal=retVal
+}
+
+Runtime.prototype.movToStash=function(){
+    this.stash.push(this.popStackTop())
+}
+Runtime.prototype.movfromStash=function(){
+    this.pushStack(this.stash.pop())
 }
 
 Runtime.prototype.gotoEnd=function(){
@@ -192,7 +201,7 @@ Runtime.prototype.throwError=function(){
 Runtime.prototype.newFunc=function(_l,_b,_m){
     const that=this;
     return function(){
-        const nr= new Runtime(_b,0,that.env)
+        const nr= new Runtime(_b,0,that.env,this!==window?this:null)
         nr.accesstors=[that].concat(that.accesstors)
         nr.contextMap=_m
         nr.newStack()
@@ -327,7 +336,7 @@ const envProxy=new Proxy({${this.extenals.map(v=>v+":window[\""+v+"\"]").join(",
     }
 })`     
     }
-    return "const bytecodes=["+code+"]\n"+proxy+"\nnew Runtime(bytecodes,0"+(proxy?",envProxy":"")+").run()"
+    return "const bytecodes=["+code+"]\n"+proxy+"\nconst runtime=new Runtime(bytecodes,0"+(proxy?",envProxy":"")+");\nruntime.run()"
 }
 
 Runtime.prototype.toString=function(){

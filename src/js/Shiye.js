@@ -4,6 +4,7 @@ import Runtime from "./Runtime"
 class __SHIYE {
     constructor() {
         this.sourceCode=null
+        this.sourceCodePostionOffset=0
         this.name=null
         this.args=[]
         this.type="Program"
@@ -13,8 +14,8 @@ class __SHIYE {
         this.vars = []
         this.blockMethods=[]
         this.anccesstorsPostions=[]
-        this.contextVars = []
-        this.alterContextVars = []
+        this.contextVars = {}
+        this.alterContextVars = {}
         this.contextVarsMap = {}
         this.map = []
         this.code = []
@@ -24,6 +25,7 @@ class __SHIYE {
         this.anccesstors=[]
         this.localMethods=[]
         this.import=[]
+        this.extEffect=[]
     }
 }
 
@@ -54,7 +56,7 @@ __SHIYE.prototype.logExtenals = function (name) {
 
 __SHIYE.prototype.newBlock = function () {
     this.blockMethods.push([])
-    this.vars.push([])
+    this.vars.push({})
     this.map.push(0)
     return [-1, -1]
 }
@@ -112,6 +114,8 @@ __SHIYE.prototype.findVar = function (name) {
 __SHIYE.prototype.findContextVar = function (name) {
     if(this.contextVars[name]){
         return this.contextVars[name]
+    }else if(this.alterContextVars[name]){
+        return [-2,this.alterContextVars[name]]
     }
     const alternative=[]//备选项
     for (let i = 0; this.anccesstors[i]; ++i) {
@@ -154,7 +158,7 @@ __SHIYE.prototype.findContextVar = function (name) {
         }
         this.alterContextVars[name].push([nextIndex,find[2]])
     }
-    return alternative.length?this.alterContextVars[name]:[-1,-1]
+    return alternative.length?[-2,this.alterContextVars[name]]:[-1,-1]
 }
 
 __SHIYE.prototype.translate = function () {
@@ -355,7 +359,10 @@ function accept(sourcecode,node) {
 function acceptFunction(parent,node,anccesstorsPostions) {
     const vm = new __SHIYE();
     vm.type="Function"
-    vm.sourceCode=parent.sourceCode
+    const startCode=node.start-parent.sourceCodePostionOffset
+    const endCode=node.end-parent.sourceCodePostionOffset
+    vm.sourceCode=parent.sourceCode.substring(startCode,endCode)
+    vm.sourceCodePostionOffset=node.start
     vm.name=node.id?node.id.name:null
     vm.anccesstors=[parent].concat(parent.anccesstors)
     vm.anccesstorsPostions=anccesstorsPostions||[]
@@ -537,8 +544,21 @@ function loadBlockBody(vm,body, blockStartTag, blockEndTag){
             vm.code.push([bydecodeDef.setError])
             vm.code.push([bydecodeDef.throwError])
         }break;
+        case "Identifier":{
+            loadValueWithTag(vm,body)
+            vm.code.push([bydecodeDef.movRet])
+        }break;
         case "EmptyStatement":break;
         default: throw new Error("unknow statement "+body.type)
+    }
+    //实现对变量操作的副作用
+    vm.takeEffect()
+   
+}
+
+__SHIYE.prototype.takeEffect=function (){
+    while(this.extEffect&&this.extEffect.length){
+        this.code=this.code.concat(this.extEffect.pop())
     }
 }
 
@@ -569,7 +589,7 @@ function loadBlockBody(vm,body, blockStartTag, blockEndTag){
 
 
 function defineFunction(vm,record){
-    const nvm=acceptFunction(vm,record.node,record.accesstorsPositions);
+    const nvm=acceptFunction(vm,record.node,record.anccesstorsPostions);
     const newExtenals=nvm.extenals
     //更新外部引用
     if(newExtenals&&newExtenals.length){
@@ -604,16 +624,16 @@ function defFunctionPre(vm,funcNode){
         }
         return positions;
     }
-    const accesstorsPositions=[currentVarMap(vm)]
-    vm.anccesstors.forEach((v,index)=>{
-        accesstorsPositions[index+1]=currentVarMap(v)
-    })
+    const anccesstorsPostions=[currentVarMap(vm)].concat(vm.anccesstorsPostions)
+    // vm.anccesstors.forEach((v,index)=>{
+    //     accesstorsPositions[index+1]=currentVarMap(v)
+    // })
     const localMethodsIndex=vm.localMethods.length
     vm.localMethods.push(undefined)
 
     const record={
         code:vm.code.length,
-        accesstorsPositions,
+        anccesstorsPostions,
         localMethodsIndex,
         node:funcNode
     }
@@ -676,8 +696,16 @@ function loadDefVar(vm, node,nextBlockTag) {
             vm.code.push([bydecodeDef.loadUndefined])
             return ;
         }
+        if(node.raw==="true"){
+            vm.code.push([bydecodeDef.loadTrue])
+            return ;
+        }else if(node.raw==="false"){
+            vm.code.push([bydecodeDef.loadFalse])
+            return ;
+        }
         if (typeof val === 'number') {
             vm.code.push([bydecodeDef.loadValue, val])
+            return ;
         } else if (typeof val === 'string') {
             if(val){
                 vm.consts.push(val);
@@ -685,8 +713,9 @@ function loadDefVar(vm, node,nextBlockTag) {
             }else{
                 vm.code.push([bydecodeDef.loadBlank])
             }
+            return ;
         }
-        return null
+        throw new Error("unknown Literal type value "+val)
     } else if (type === "ArrayExpression") {
         const es = node.elements
         for (let i = 0; es[i]; ++i) {
@@ -714,6 +743,7 @@ function loadDefVar(vm, node,nextBlockTag) {
             const esTag=new __Tag("esTag")
             lastIdx = loadDefVar(vm,es[i],esTag)
             vm.code.push(esTag)
+            vm.takeEffect()
         }
         return lastIdx
     } else if (type == "UpdateExpression") {
@@ -730,12 +760,17 @@ function loadDefVar(vm, node,nextBlockTag) {
         if (node.prefix) {
             vm.code.push([bydecodeDef.dupStack])
         }
+        vm.code.push([bydecodeDef.movToStash])
+        //要让变量做到语句结束才更新，要付出一点代价啊
+        const preCode=vm.code
+        vm.code=[]
+        vm.code.push([bydecodeDef.movfromStash])
         if (node.argument.type == "Identifier") {
             if (idx && idx[0] != -1) {
                 vm.code.push([bydecodeDef.storeVar, idx])
             }else{
                 idx=vm.findContextVar(node.argument.name)
-                if(idx[0]!=-1){
+                if(idx[0]>=0){
                     vm.code.push([bydecodeDef.storeContextVar,idx])
                 }else{
                     if(idx[0]===-2){
@@ -763,6 +798,9 @@ function loadDefVar(vm, node,nextBlockTag) {
             }
             vm.code.push([bydecodeDef.setProp])
         }
+        //额外的副作用问题，让副作用在每个语句完成后起作用
+        vm.extEffect.push(vm.code)
+        vm.code=preCode
         return idx
 
     } else if (type === "MemberExpression") {
@@ -786,7 +824,7 @@ function loadDefVar(vm, node,nextBlockTag) {
             } else {
                 vm.code.push([bydecodeDef.loadVar, idx])
             }
-            if(vm.sourceCode.charAt(node.property.start-1)==='['){
+            if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
                 loadValueWithTag(vm, node.property)
             }else{
                 vm.code.push([bydecodeDef.loadConst, vm.addConstr(node.property.name)])
@@ -794,7 +832,7 @@ function loadDefVar(vm, node,nextBlockTag) {
         }else{
             loadValueWithTag(vm, node.object)
             if(node.property.type==="Identifier"){
-                if(vm.sourceCode.charAt(node.property.start-1)==='['){
+                if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
                     loadValueWithTag(vm, node.property)
                 }else{
                     vm.code.push([bydecodeDef.loadConst, vm.addConstr(node.property.name)])
@@ -865,7 +903,7 @@ function loadDefVar(vm, node,nextBlockTag) {
         return null
     }else if(type==="ConditionalExpression"){
         return conditionalExpression(vm,node,nextBlockTag)
-    }else if(type==="FunctionExpression"){
+    }else if(type==="FunctionExpression"||type==="ArrowFunctionExpression"){
         defFunctionPre(vm,node)
         return null
     }else if(type==="ThisExpression"){
@@ -878,14 +916,19 @@ function loadDefVar(vm, node,nextBlockTag) {
 
 
 function loadAssignmentMember(vm,node,isTop){
-    if(node.object.type==="Identifier"||node.object.type==="ThisExpression"){
-        loadIdentifier(vm, node.object)
-    }else{
-        loadAssignmentMember(vm,node.object,false)
+    // if(node.object.type==="Identifier"||node.object.type==="ThisExpression"){
+    //     loadIdentifier(vm, node.object)
+    // }else{
+    //     loadAssignmentMember(vm,node.object,false)
+    // }
+    switch(node.object.type){
+        case "MemberExpression":loadAssignmentMember(vm,node.object,false);break;
+        default:loadValueWithTag(vm,node.object);break;
     }
     
+    
     if(node.property.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
         }else{
             vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
@@ -903,17 +946,17 @@ function loadAssignmentMember(vm,node,isTop){
 
 function conditionalExpression(vm,node,retTag){
     loadValueWithTag(vm, node.test)
-
+    vm.takeEffect()
     const alterTag=new __Tag("alterTag")
     jumpToTagIfZero(vm,alterTag)
 
     loadValueWithTag(vm,node.consequent)
-
+    vm.takeEffect()
     jumpToTag(vm,retTag)
 
     vm.code.push(alterTag)
     loadValueWithTag(vm,node.alternate)
-
+    vm.takeEffect()
     return null
 }
 
@@ -966,6 +1009,7 @@ function newExpression(vm, node) {
     const args = node.arguments
     for (let i = 0; args[i]; ++i) {
         loadValueWithTag(vm,args[i])
+        vm.takeEffect()
     }
     const name = callee.name
     let idx = vm.findVar(name)
@@ -979,7 +1023,7 @@ function newExpression(vm, node) {
                 vm.code.push([bydecodeDef.load2NumAsArray,e[0],e[1]])
             });
             vm.code.push([bydecodeDef.mkArr,idx[1].length])
-            vm.code.push([bydecodeDef.newContextClassObjectSeelct, idx, args.length, vm.addConstr(name)])
+            vm.code.push([bydecodeDef.newContextClassObjectSelective, args.length, vm.addConstr(name)])
             return null;
         }
         vm.logExtenals(name)
@@ -996,6 +1040,7 @@ function callExpression(vm, node) {
     const args = node.arguments
     for (let i = 0; args[i]; ++i) {
         loadValueWithTag(vm,args[i])
+        vm.takeEffect()
     }
     if (callee.type === "Identifier") {
         const name = callee.name
@@ -1042,7 +1087,7 @@ function callExpression(vm, node) {
 
 function callLocalCallExpressionMember (vm,node,args,idx){
     if(node.object.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
             vm.code.push([bydecodeDef.memberIndexMethod,idx, args.length])
         }else{
@@ -1058,7 +1103,7 @@ function callLocalCallExpressionMember (vm,node,args,idx){
 
 function callContextCallExpressionMember (vm,node,args,idx){
     if(node.object.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
             vm.code.push([bydecodeDef.contextMemberIndexMethod,idx, args.length])
         }else{
@@ -1079,7 +1124,7 @@ function callContextCallExpressionMemberSelective (vm,node,args,idx,nameIndex){
     vm.code.push([bydecodeDef.mkArr,idx[1].length])
 
     if(node.object.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
             vm.code.push([bydecodeDef.contextMemberIndexMethodSelective, args.length,nameIndex])
         }else{
@@ -1095,7 +1140,7 @@ function callContextCallExpressionMemberSelective (vm,node,args,idx,nameIndex){
 
 function callEnvCallExpressionMember (vm,node,args,name){
     if(node.object.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
             vm.code.push([bydecodeDef.envMemberIndexMethod, vm.addConstr(name), args.length])
         }else{
@@ -1146,13 +1191,13 @@ function loadCallExpressionMember(vm,node,args,isTop){
             loadValueWithTag(vm, node.object)
         }
     }
-    if(node.object.type==="Identifier"){
-        if(vm.sourceCode.charAt(node.property.start-1)==='['){
+    if(node.property.type==="Identifier"){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
             loadValueWithTag(vm, node.property)
         }else{
             vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
         }
-    }else if(node.object.type==="Literal"){
+    }else if(node.property.type==="Literal"){
         loadValueWithTag(vm, node.property)
     }else{
         vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
@@ -1167,17 +1212,16 @@ function loadCallExpressionMember(vm,node,args,isTop){
 }
 
 function forStatement(vm, node) {
-   
- 
     if (node.init) {
         if(node.init.type==="VariableDeclaration"){
             const es=node.init.declarations
             for(let k=0;es[k];++k){
                 VariableDeclarator(vm,es[k])
+                vm.takeEffect()
             }
         }else{
             loadValueWithTag(vm,node.init)
-            vm.code.push([bydecodeDef.popStack])
+            vm.takeEffect()
         }
     }
     const loop = new __Tag("forStatementStart")
@@ -1185,17 +1229,20 @@ function forStatement(vm, node) {
     const end = new __Tag("forStatementEnd")
  
     loadValueWithTag(vm,node.test)
+    vm.takeEffect()
 
     jumpToTagIfZero(vm,end)
 
     const blockGoToStartTag=new __Tag("blockToStart")
 
     loadBlockStatement(vm,node.body, blockGoToStartTag, end)
+    vm.takeEffect()
     vm.code.push(blockGoToStartTag)
 
     if(node.update){
         loadValueWithTag(vm, node.update)
         vm.code.push([bydecodeDef.popStack])
+        vm.takeEffect()
     }
     jumpToTag(vm,loop)
  
@@ -1208,18 +1255,22 @@ function ifStatement(vm, node, startTag, endTag) {
     const end = new __Tag("ifStatementEnd")
     
     loadValueWithTag(vm,node.test)
+    vm.takeEffect()
 
     jumpToTagIfZero(vm,next)
     
     loadBlockStatement(vm, node.consequent,startTag, endTag)
-    
+    vm.takeEffect()
+
     if(node.alternate){
         jumpToTag(vm,end)
         vm.code.push(next)
         if(node.alternate.type==="IfStatement"){
             ifStatement(vm,node.alternate,startTag, endTag)
+            vm.takeEffect()
         }else{
             loadBlockStatement(vm, node.alternate,startTag, endTag)
+            vm.takeEffect()
         }
         vm.code.push(end)
     }else{
@@ -1235,10 +1286,12 @@ function whileStatement(vm, node) {
     vm.code.push(start)
 
     loadValueWithTag(vm,node.test)
+    vm.takeEffect()
 
-    jumpToTagIfZero(end)
+    jumpToTagIfZero(vm,end)
     
     loadBlockStatement(vm, node.body, start, end)
+    vm.takeEffect()
 
     jumpToTag(vm,start)
 
@@ -1278,6 +1331,7 @@ function tryStatement(vm, node, startTag, endTag){
             }else{
                 blockStatement(vm, finalizer,startTag? pureLoop:startTag,endTag?pureClean:endTag)
             }
+            vm.takeEffect()
             const finallyBlockEndPosition=checkCurrentIndex(vm)
             vm.code.push([bydecodeDef.delStack])
             vm.qiutBlock()
@@ -1372,6 +1426,7 @@ function loadErrorBlockClean(vm,start,end){
 function switchStatement(vm, node) {
     
     loadValueWithTag(vm,node.discriminant)
+    vm.takeEffect()
     //重新排序下case，把default放到最后匹配
     const cases=node.cases
     const sortCaseArray=[]
@@ -1397,6 +1452,7 @@ function switchStatement(vm, node) {
             vm.code.push([bydecodeDef.dupStack])
     
             loadValueWithTag(vm, sortCaseArray[i].test)
+            vm.takeEffect()
 
             const clearStack=new __Tag("clearStack")
             const nextJudge=new __Tag("nextJudge")
@@ -1430,6 +1486,7 @@ function switchStatement(vm, node) {
                 vm.newBlock()
                 vm.code.push([bydecodeDef.newStack])
                 blockStatement(vm,consequent[k],null,clean)
+                vm.takeEffect()
                 vm.code.push([bydecodeDef.delStack])
                 vm.qiutBlock()
                 loadErrorBlockClean(vm,startPosition,checkCurrentIndex(vm))
@@ -1454,10 +1511,10 @@ function doWhileStatement(vm, node) {
     vm.code.push(start)
 
     loadBlockStatement(vm, node.body, loop, end)
-
+    vm.takeEffect()
     vm.code.push(loop)
     loadValueWithTag(vm, node.test)
-
+    vm.takeEffect()
     jumpToTagIfNotZero(vm,start)
 
     vm.code.push(end)

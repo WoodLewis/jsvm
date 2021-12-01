@@ -176,6 +176,32 @@ export default {
             runtime.next(3)
         }
     },
+    movToStash: {
+        des: {
+            code: "movToStash",
+            stack: "[arg]",
+            newStack: "[]"
+        },
+        name: 'movToStash',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.movToStash()
+            runtime.next(1)
+        }
+    },
+    movfromStash: {
+        des: {
+            code: "movfromStash",
+            stack: "[]",
+            newStack: "[arg]"
+        },
+        name: 'movfromStash',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.movfromStash()
+            runtime.next(1)
+        }
+    },
     min: {
         des: {
             code: "min",
@@ -528,6 +554,32 @@ export default {
             runtime.next(1)
         }
     },
+    loadTrue: {
+        des: {
+            code: "loadTrue",
+            stack: "[]",
+            newStack: "[true]"
+        },
+        name: 'loadTrue',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(true)
+            runtime.next(1)
+        }
+    },
+    loadFalse: {
+        des: {
+            code: "loadFalse",
+            stack: "[]",
+            newStack: "[false]"
+        },
+        name: 'loadFalse',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack(false)
+            runtime.next(1)
+        }
+    },
     loadUndefined: {
         des: {
             code: "loadUndefined",
@@ -798,7 +850,7 @@ export default {
         _apply:function(runtime){
             const right=runtime.popStackTop(),
                 left=runtime.popStackTop()
-            runtime.pushStack(left instanceof right)
+            runtime.pushStack(left&&right&&(left.__proto__==right.prototype))
             runtime.next(1)
         }
     },
@@ -950,9 +1002,10 @@ export default {
         name: 'newLocalClassObject',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
+            const val=runtime.visitStackVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            const array=runtime.popStackTopN(runtime.nextCodeNVal(3))
+            runtime.pushStack(Reflect.construct(val,array))
             runtime.next(4)
-            throw new Error("not implement instruction newLocalClassObject")
         }
     },
     newContextClassObject: {
@@ -965,24 +1018,29 @@ export default {
         name: 'newContextClassObject',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
+            const val=runtime.visitContextVal(runtime.nextCodeNVal(1),runtime.nextCodeNVal(2))
+            const array=runtime.popStackTopN(runtime.nextCodeNVal(3))
+            runtime.pushStack(Reflect.construct(val,array))
             runtime.next(4)
-            throw new Error("not implement instruction newLocalClassObject")
         }
     },
-    newContextClassObjectSeelct: {
+    newContextClassObjectSelective: {
         des: {
-            code: "newContextClassObject tagetObjectStackPosition[stackIndex,positionIndex] argsLen alterName",
-            stack: "[arg1,arg2...]",
+            code: "newContextClassObjectSelective argsLen alterName",
+            stack: "[arg1,arg2...,[selective,...]]",
             newStack: "[retVal]",
             retStack:""
         },
-        name: 'newContextClassObject',
+        name: 'newContextClassObjectSelective',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            //TODO 尚未实现自定义方法调用
-            runtime.next(4)
-            throw new Error("not implement instruction newLocalClassObject")
+            const args=runtime.nextCodeNVal(1),
+            alterName=runtime.loadConstant(runtime.nextCodeNVal(2)),
+            selective=runtime.popStackTop()
+            const _v=runtime.visitContextValSelective(selective)
+            const array=runtime.popStackTopN(args),target=_v[0]?_v[1]:runtime.envObject(alterName)
+            runtime.pushStack(Reflect.construct(target,array))
+            runtime.next(3)
         }
     },
     not: {

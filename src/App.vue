@@ -1,5 +1,7 @@
 <template>
   <div id="app">
+    <button @click="compileMd5">编译md5</button>
+    <button @click="compileSha512">编译sha512</button>
     <div style="display:flex">
         <code-viewer :key="1" style="width:600px;" :sourceCode="sourceCode" @code-change="changeSource"/>
         <code-viewer :key="2" style="width:600px;" :sourceCode="compiledCode" @code-change="changeCode"/>
@@ -14,8 +16,52 @@ import shiye from "./js/Shiye";
 import * as MrHuang from "acorn";
 import CodeViewer from './components/CodeViewer.vue'
 
-// import md5js from './js/FileRaw!./assets/md5.min.txt'
-import sha512js from './js/FileRaw!./assets/sha512.js.txt'
+import md5Js from './js/FileRaw!./assets/md5.min.txt'
+import sha512Js from './js/FileRaw!./assets/sha512.js.txt'
+
+const testJs=`
+let kk=0;
+kk++,console.log(kk),++kk,console.log(kk),kk
+console.log(kk)
+
+let k=0,m=0;
+m=k+k++
+console.log(m)
+console.log(k)
+
+m=k+(++k)
+console.log(m)
+console.log(k)
+
+function NewObject(obj){
+  console.log("call NewObject constructor")
+  this.$1=0
+  this.$c="abcdefg"
+  this.arg=obj
+  console.log("now this is "+this)
+}
+NewObject.prototype.getFirst=function(){
+  return this.$1
+}
+
+NewObject.prototype.getTest=function(){
+  return this.$c
+}
+NewObject.prototype.getThis=function(){
+  return this
+}
+
+console.log("test create new NewObject")
+const testObj=new NewObject({param:123})
+
+console.log("testObj is "+testObj)
+console.log("test call method getFirst ,return is  "+testObj.getFirst())
+console.log("test call method getTest ,return is  "+testObj.getTest())
+
+console.log("test call method getThis ,return is  "+testObj.getThis())
+
+console.log("test visit member ,testObj.args=  "+testObj.arg)
+`
 
 export default {
   name: 'App',
@@ -24,7 +70,7 @@ export default {
   },
   data(){
     return {
-      sourceCode:sha512js,
+      sourceCode:testJs,
       compiledCode:""
     }
   },
@@ -32,6 +78,14 @@ export default {
     this.compileCode()
   },
   methods:{
+    compileMd5(){
+      this.sourceCode=md5Js
+      this.compileCode()
+    },
+     compileSha512(){
+      this.sourceCode=sha512Js
+      this.compileCode()
+    },
     changeSource(code){
       this.sourceCode=code
     },
@@ -49,9 +103,6 @@ export default {
       const real=promise.translate()
       console.log(real)
       this.compiledCode=real.toString()
-      // real.run()
-      // console.log(real.md5)
-      // console.log(real.md5("12345656789"))
     },
     runCode(){
       eval(this.compiledCode)
