@@ -6,7 +6,7 @@ function Runtime(bytecodes,codeoffset,env,target){
     this.stackArray=[]
     this.pointer=0
     this.codeOffset=codeoffset||0
-    this.code=bytecodes||[]
+    this.code=bytecodes?(this.checkHasProperty(bytecodes,1)?bytecodes:bytecodes[0].map((v,i)=>v-(i<255?255:i))):[]
     this.env=env||{}
     this.$this=target||this
     this.retVal=null
@@ -274,10 +274,10 @@ Runtime.prototype.declearation=function(){
     const replaceMethods=function(str){
         for(let i=0;arr[i];++i){
             str=str
-                .replaceAll("this."+arr[i]+"(","this.__"+i.toString(32)+"(")
-                .replaceAll("runtime."+arr[i]+"(","runtime.__"+i.toString(32)+"(")
-                .replaceAll("nr."+arr[i]+"(","nr.__"+i.toString(32)+"(")
-                .replaceAll("v."+arr[i]+"(","v.__"+i.toString(32)+"(")
+                .replaceAll("this."+arr[i]+"(","this.__"+i.toString(36)+"(")
+                .replaceAll("runtime."+arr[i]+"(","runtime.__"+i.toString(36)+"(")
+                .replaceAll("nr."+arr[i]+"(","nr.__"+i.toString(36)+"(")
+                .replaceAll("v."+arr[i]+"(","v.__"+i.toString(36)+"(")
         }
         return str
     }
@@ -301,17 +301,13 @@ Runtime.prototype.declearation=function(){
         .replaceAll("selective","_5")
         .replace(/var\s+([_\w]+)=([^;]+);var\s+([_\w]+)=/g,"var $1=$2,$3=")
         .replace(/if\(([^()]+)\)\{([^}]+)\}else\{([^}]+)\}/g,"($1)?($2):($3);")
-    let runtimeMethods="([";
-    for(let i=0;arr[i];++i){
-        runtimeMethods+="{__"+i.toString(32)+":"+
-            reloaceLocalVar(replaceMethods(replaceBlank(Runtime.prototype[arr[i]].toString())))
-            +"},"
-    }
-    runtimeMethods+="{run:"+reloaceLocalVar(replaceBlank(replaceMethods(Runtime.prototype.run.toString())))+"}]).forEach(v=>{for(var i in v){Runtime.prototype[i]=v[i]}})"
-
    
+    const runtimeMethods="Runtime.prototype={"+
+        arr.map((v,i)=> "__"+i.toString(36)+":"+reloaceLocalVar(replaceMethods(replaceBlank(Runtime.prototype[v].toString())))).join(",")+
+        ",run:"+reloaceLocalVar(replaceBlank(replaceMethods(Runtime.prototype.run.toString())))+
+        "};"
     // const declearation= `function Runtime(_,__,___,$){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this.$t=$||this,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
-    return reloaceLocalVar(Runtime.prototype.constructor.toString())
+    return reloaceLocalVar(replaceMethods(Runtime.prototype.constructor.toString()))
             .replace(/[\n\r\t\s]*([{}[\]}();]+)[\n\r\t\s]*/g,"$1")//去除[]{}();的前后空白
             .replaceAll("bytecodes","_")
             .replaceAll("codeoffset","$")
@@ -337,7 +333,7 @@ const envProxy=new Proxy({${this.extenals.map(v=>v+":window[\""+v+"\"]").join(",
     }
 })`     
     }
-    return "const bytecodes=["+code+"]\n"+proxy+"\nconst runtime=new Runtime(bytecodes,0"+(proxy?",envProxy":"")+");\nruntime.run()"
+    return "const bytecodes=["+code.map((v,i)=>{v+=(i<255?255:i);return (v<255)?v:("0x"+v.toString(16))}).join(",")+"]\n"+proxy+"\nconst runtime=new Runtime([bytecodes],0"+(proxy?",envProxy":"")+");\nruntime.run()"
 }
 
 Runtime.prototype.toString=function(){
