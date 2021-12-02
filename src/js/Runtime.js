@@ -309,6 +309,8 @@ Runtime.prototype.declearation=function(){
     // const declearation= `function Runtime(_,__,___,$){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this.$t=$||this,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
     return reloaceLocalVar(replaceMethods(Runtime.prototype.constructor.toString()))
             .replace(/[\n\r\t\s]*([{}[\]}();]+)[\n\r\t\s]*/g,"$1")//去除[]{}();的前后空白
+            .replace(/\s*([<>,?()+\-*/:])\s*/g,"$1")
+            .replace(/function\(([\w,\s]+)\)\{\s*return\s+([^;]+);?\}/,"($1)=>$2")
             .replaceAll("bytecodes","_")
             .replaceAll("codeoffset","$")
             .replaceAll("env","__")
