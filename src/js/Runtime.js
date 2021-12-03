@@ -6,7 +6,7 @@ function Runtime(bytecodes,codeoffset,env,target){
     this.stackArray=[]
     this.pointer=0
     this.codeOffset=codeoffset||0
-    this.code=bytecodes?(this.checkHasProperty(bytecodes,1)?bytecodes:bytecodes[0].map((v,i)=>v-(i<255?255:i))):[]
+    this.code=bytecodes?(this.checkHasProperty(bytecodes,1)?bytecodes:bytecodes[0].map((v,i)=>v-((i&0xff00)?i:0xff))):[]
     this.env=env||{}
     this.$this=target||this
     this.retVal=null
@@ -114,20 +114,23 @@ Runtime.prototype.storeContextVarSelective=function($a,val){
     return null
 }
 Runtime.prototype.pushStack=function(obj){
-    this.stack[this.stack.length-1].push(obj)
+    this.arrTop(this.stack).push(obj)
 }
 
 Runtime.prototype.popStackTop=function(){
-    return this.stack[this.stack.length-1].pop()
+    return this.arrTop(this.stack).pop()
 }
 
 Runtime.prototype.dupStackTop=function(){
-    const st=this.stack[this.stack.length-1]
+    const st=this.arrTop(this.stack)
     st.push(st[st.length-1])
+}
+Runtime.prototype.arrTop=function(arr){
+    return arr[arr.length-1]
 }
 
 Runtime.prototype.popStackTopN=function(n){
-    const st=this.stack[this.stack.length-1]
+    const st=this.arrTop(this.stack)
     const arr=[]
     for(let i=n;i>0;--i){
         arr[i-1]= st.pop()
@@ -236,21 +239,21 @@ function reloaceLocalVar(func){
         .replace(/(this|that|nr)\.extenals\s*=\s*\[\];?/g,"")
         .replace(/(this|that|nr|\)|\])\.stackArray/g,"$1._a")
         .replace(/(this|that|nr|\)|\])\.stack/g,"$1._s")
-        .replace(/(this|that|nr|\)|\])\.stash/g,"$1.__")
+        .replace(/(this|that|nr|\)|\])\.stash/g,"$1._а")//这个是俄文字母
         .replace(/(this|that|nr|\)|\])\.env/g,"$1._e")
         .replace(/(this|that|nr|\)|\])\.\$this/g,"$1._t")
         .replace(/(this|that|nr|\)|\])\.pointer/g,"$1._p")
         .replace(/(this|that|nr|\)|\])\.codeMap/g,"$1._c")
         .replace(/(this|that|nr|\)|\])\.codeOffset/g,"$1._o")
         .replace(/(this|that|nr|\)|\])\.errorMap/g,"$1._m")
-        .replace(/(this|that|nr|\)|\])\.error/g,"$1.$e")
+        .replace(/(this|that|nr|\)|\])\.error/g,"$1._е")//这个是俄文字母
         .replace(/(this|that|nr|\)|\])\.code/g,"$1._")
-        .replace(/(this|that|nr|\)|\])\.retVal/g,"$1.$")
+        .replace(/(this|that|nr|\)|\])\.retVal/g,"$1.х")//这个是俄文字母
         .replace(/(this|that|nr|\)|\])\.accesstors/g,"$1.$_")
-        .replace(/(this|that|nr|\)|\])\.contextMap/g,"$1.$c")
-        .replaceAll("stack","$0")
+        .replace(/(this|that|nr|\)|\])\.contextMap/g,"$1._о")//这个是俄文字母
+        .replaceAll("stack","$ǃ")
         .replaceAll("index","$1")
-        .replaceAll("name","$2")
+        .replaceAll("name","$ǀ")
         .replaceAll("retVal","$$")
         .replaceAll("val","$_")
         .replaceAll("that","$t")
@@ -279,7 +282,7 @@ Runtime.prototype.declearation=function(){
                 .replaceAll("nr."+arr[i]+"(","nr.__"+i.toString(36)+"(")
                 .replaceAll("v."+arr[i]+"(","v.__"+i.toString(36)+"(")
         }
-        return str
+        return str.replace(/console\.(log|error)\([\w.\s]+\);?/g,"")
     }
  
     let codeMap=this.codeMap.toString()
@@ -294,11 +297,11 @@ Runtime.prototype.declearation=function(){
         .replaceAll("className","_n")
         .replaceAll("objName","_0")
         .replaceAll("methodName","_1")
-        .replaceAll("args","___")
-        .replaceAll("array","_2")
-        .replaceAll("val","_3")
-        .replaceAll("alterName","_4")
-        .replaceAll("selective","_5")
+        .replaceAll("args","_ǀ")
+        .replaceAll("array","_ǃ")
+        .replaceAll("val","_Ӏ")
+        .replaceAll("alterName","_ı")
+        .replaceAll("selective","_ί")
         .replace(/var\s+([_\w]+)=([^;]+);var\s+([_\w]+)=/g,"var $1=$2,$3=")
         .replace(/if\(([^()]+)\)\{([^}]+)\}else\{([^}]+)\}/g,"($1)?($2):($3);")
    
@@ -309,7 +312,7 @@ Runtime.prototype.declearation=function(){
     // const declearation= `function Runtime(_,__,___,$){this.$a=[],this.$c=[],this._s=[],this._a=[],this._em=[],this._p=0,this.$=this.$e=null,this.$t=$||this,this._e=___||{},this._o=__||0,this._$=_,this._c=[${codeMap}]};${runtimeMethods}`
     return reloaceLocalVar(replaceMethods(Runtime.prototype.constructor.toString()))
             .replace(/[\n\r\t\s]*([{}[\]}();]+)[\n\r\t\s]*/g,"$1")//去除[]{}();的前后空白
-            .replace(/\s*([<>,?()+\-*/:])\s*/g,"$1")
+            .replace(/\s*([<>,?()+\-*/:&])\s*/g,"$1")
             .replace(/function\(([\w,\s]+)\)\{\s*return\s+([^;]+);?\}/,"($1)=>$2")
             .replaceAll("bytecodes","_")
             .replaceAll("codeoffset","$")
