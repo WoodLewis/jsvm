@@ -18,7 +18,7 @@ import CodeViewer from './components/CodeViewer.vue'
 
 import md5Js from './js/FileRaw!./assets/md5.min.txt'
 import sha512Js from './js/FileRaw!./assets/sha512.js.txt'
-
+//功能测试代码
 const testJs=`
 let kk=0;
 kk++,console.log(kk),++kk,console.log(kk),kk
@@ -32,6 +32,28 @@ console.log(k)
 m=k+(++k)
 console.log(m)
 console.log(k)
+
+function switchTest(t){
+  console.log("test case "+t)
+  switch(t){
+    case 1:console.log("1");break;
+    case 2:console.log("2");
+    default:console.log("default");
+    case 3:console.log("3");break;
+    case 4:{console.log("4");}break;
+    case 5:{console.log("5");}
+    case 6:{console.log("6");}
+  }
+}
+
+switchTest(1)
+switchTest(2)
+switchTest(3)
+switchTest(4)
+switchTest(5)
+switchTest(6)
+switchTest(7)
+
 
 function NewObject(obj){
   console.log("call NewObject constructor")

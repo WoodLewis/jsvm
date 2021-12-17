@@ -413,20 +413,23 @@ function acceptFunction(parent,node,anccesstorsPostions) {
 
 
 function jumpToTag(vm, tag) {
-    const jmpTo = [bydecodeDef.jmp, 0, tag, '//jump to Tag, refresh position after finish translate']
+    // const jmpTo = [bydecodeDef.jmp, 0, tag, '//jump to Tag, refresh position after finish translate']
+    const jmpTo = [bydecodeDef.jmp, 0]
     vm.code.push(jmpTo)
     tag.addListener(jmpTo)
 }
 
 
 function jumpToTagIfZero(vm, tag) {
-    const jmpTo = [bydecodeDef.jmpZero, 0, tag, '//jump to Tag if stack top is false, refresh position after finish translate']
+    // const jmpTo = [bydecodeDef.jmpZero, 0, tag, '//jump to Tag if stack top is false, refresh position after finish translate']
+    const jmpTo = [bydecodeDef.jmpZero, 0]
     vm.code.push(jmpTo)
     tag.addListener(jmpTo)
 }
 
 function jumpToTagIfNotZero(vm, tag) {
-    const jmpTo = [bydecodeDef.jmpNotZero, 0, tag, '//jump to Tag if stack top is true, refresh position after finish translate']
+    // const jmpTo = [bydecodeDef.jmpNotZero, 0, tag, '//jump to Tag if stack top is true, refresh position after finish translate']
+    const jmpTo = [bydecodeDef.jmpNotZero, 0]
     vm.code.push(jmpTo)
     tag.addListener(jmpTo)
 }
@@ -656,6 +659,12 @@ function returnStatement(vm,node){
     vm.code.push([bydecodeDef.retFunc])
 }
 
+/**
+ * 变量声明
+ * @param {*} vm 
+ * @param {*} node 
+ * @returns 
+ */
 function VariableDeclarator(vm, node) {
     const name = node.id.name
     const curStack = vm.vars[vm.vars.length - 1]
@@ -744,7 +753,7 @@ function loadDefVar(vm, node,nextBlockTag) {
         let lastIdx = null
         for (let i = 0; es[i]; ++i) {
             if (i > 0) {
-                vm.code.push([bydecodeDef.popStack])
+                vm.code.push([bydecodeDef.popStack])//由一串语句拼成的大语句，只要最后一个作为返回值
             }
             const esTag=new __Tag("esTag")
             lastIdx = loadDefVar(vm,es[i],esTag)
@@ -767,7 +776,7 @@ function loadDefVar(vm, node,nextBlockTag) {
             vm.code.push([bydecodeDef.dupStack])
         }
         vm.code.push([bydecodeDef.movToStash])
-        //要让变量做到语句结束才更新，要付出一点代价啊
+        //要让变量做到语句结束才更新副作用，要付出一点代价啊
         const preCode=vm.code
         vm.code=[]
         vm.code.push([bydecodeDef.movfromStash])
@@ -1353,7 +1362,7 @@ function tryStatement(vm, node, startTag, endTag){
     blockStatement(vm, node.block,startTag? loop:startTag,endTag?clean:endTag)
     vm.qiutBlock()
     vm.code.push([bydecodeDef.delStack])
-    //正常快递此处结束
+    //正常块结束
     const tryEndPosition=checkCurrentIndex(vm)
     const next=new __Tag("tryStatementNext")
     jumpToTag(vm,next)
@@ -1423,6 +1432,7 @@ function loadErrorBlockClean(vm,start,end){
     const jmp=new __Tag("normalJump")
     jumpToTag(vm,jmp)//这里只允许跳转进来，其他时候要跳过
     const throwPosition=checkCurrentIndex(vm)
+    vm.takeEffect()//出错了副作用还要不要也是个问题
     vm.code.push([bydecodeDef.delStack])//处理异常前需要先把正常代码块卸载
     vm.code.push([bydecodeDef.throwError])
     vm.catch.push([start,end,throwPosition])
@@ -1433,21 +1443,10 @@ function switchStatement(vm, node) {
     
     loadValueWithTag(vm,node.discriminant)
     vm.takeEffect()
-    //重新排序下case，把default放到最后匹配
-    const cases=node.cases
-    const sortCaseArray=[]
-    let defaultCase=null
+
+    const sortCaseArray=node.cases
+    let defaultCaseIndex=-1;
     const caseTagArr=[]
-    for(let i=0;cases[i];++i){
-        if(cases[i].test){
-            sortCaseArray.push(cases[i])
-        }else{
-            defaultCase=cases[i]
-        }
-    }
-    if(defaultCase!=null){
-        sortCaseArray.push(defaultCase)
-    }
 
     for(let i=0;sortCaseArray[i];++i){
         caseTagArr[i]=new __Tag("switchStatementTag"+i)
@@ -1456,14 +1455,13 @@ function switchStatement(vm, node) {
     for(let i=0;sortCaseArray[i];++i){
         if(sortCaseArray[i].test){
             vm.code.push([bydecodeDef.dupStack])
-    
+            
             loadValueWithTag(vm, sortCaseArray[i].test)
-            vm.takeEffect()
+            vm.takeEffect()//理论上这里应该是常量，不会有什么副作用，但万一呢？？？
 
-            const clearStack=new __Tag("clearStack")
-            const nextJudge=new __Tag("nextJudge")
+            const clearStack=new __Tag("clearStack"),nextJudge=new __Tag("nextJudge")
 
-            const jmpToClear = [bydecodeDef.eqJmp, 0, clearStack, '//jump to switchStatementCaseTest, refresh position after finish translate']
+            const jmpToClear = [bydecodeDef.eqJmp, 0]
             vm.code.push(jmpToClear)
             clearStack.addListener(jmpToClear)
             
@@ -1475,10 +1473,15 @@ function switchStatement(vm, node) {
 
             vm.code.push(nextJudge)
         }else{
-            vm.code.push([bydecodeDef.popStack])
-            jumpToTag(vm,caseTagArr[i])
+            defaultCaseIndex=i;
         }
     }
+    //defaultCase的匹配放到最后
+    if(defaultCaseIndex>=0){
+        vm.code.push([bydecodeDef.popStack])
+        jumpToTag(vm,caseTagArr[defaultCaseIndex])
+    }
+
   
     const clean = new __Tag("switchStatementCaseClean")
 
