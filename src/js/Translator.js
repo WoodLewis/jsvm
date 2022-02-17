@@ -1607,9 +1607,43 @@ function unaryExpression(vm,node){
             vm.code.push(argumentTag)
             vm.code.push([bydecodeDef.void]);
         } break;
+        case "delete": {
+            const arg=node.argument
+            switch(arg.type){
+                case "Identifier":break;//删除符号跳过
+                case "MemberExpression":{
+                    loadDeleteMember(vm,arg,true)
+                }break;
+            }
+           
+        } break;
         default: throw new Error("unkonow unaryExpression operator " + node.operator);
     }
     return null
+}
+
+function loadDeleteMember(vm,node,isTop){
+
+    switch(node.object.type){
+        case "MemberExpression":loadAssignmentMember(vm,node.object,false);break;
+        default:loadValueWithTag(vm,node.object);break;
+    }
+    
+    if(node.property.type==="Identifier"){
+        if(vm.sourceCode.charAt(node.property.start-1-vm.sourceCodePostionOffset)==='['){
+            loadValueWithTag(vm, node.property)
+        }else{
+            vm.code.push([bydecodeDef.loadConst,vm.addConstr(node.property.name)])
+        }
+    }else{
+        loadValueWithTag(vm, node.property)
+    }
+    
+    if(isTop){
+        vm.code.push([bydecodeDef.delProp])
+    }else{
+        vm.code.push([bydecodeDef.loadProp])
+    } 
 }
 
 export default {

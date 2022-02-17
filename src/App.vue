@@ -20,6 +20,17 @@ import md5Js from './js/FileRaw!./assets/md5.min.txt'
 import sha512Js from './js/FileRaw!./assets/sha512.js.txt'
 //功能测试代码
 const testJs=`
+const obj={
+  a:1,b:2,
+  c:{
+    d:1,f:2
+  }
+}
+delete obj.a
+delete obj["b"]
+delete obj.c.d
+console.log(obj)
+
 let kk=0;
 kk++,console.log(kk),++kk,console.log(kk),kk
 console.log(kk)

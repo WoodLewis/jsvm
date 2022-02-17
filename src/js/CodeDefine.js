@@ -898,6 +898,21 @@ export default {
             runtime.next(1)
         }
     },
+    delProp: {
+        des: {
+            code: "delProp",
+            stack: "[target,property]",
+            newStack: "[]"
+        },
+        name: 'delProp',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const property=runtime.popStackTop(),
+                target=runtime.popStackTop()
+            delete target[property]
+            runtime.next(1)
+        }
+    },
     retFunc: {
         des: {
             code: "retFunc",
