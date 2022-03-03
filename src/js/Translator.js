@@ -322,12 +322,36 @@ __Translator.prototype.translate = function () {
 }
 
 function stringToBytes(str){
-    const array=[]
-    for(let i=0;i<str.length;++i){
-        //来一点简单的加密
-        array.push(str.charCodeAt(i)^i)
-    }
-    return array
+    const array=encodeStrToBytes(str)
+    //来一点简单的加密
+    return array.map(v=>v-0x14)
+}
+
+function encodeStrToBytes(str){
+   return (window.TextEncoder ? function(str) {
+        const encoder = new TextEncoder('utf8');
+        const bytes = encoder.encode(str);
+        const array=[]
+        for(var i = 0; i < bytes.length; ++i) {
+            array.push(bytes[i]);
+        }
+        return array;
+    } : function(str) {
+        const array=[]
+        const es=encodeURIComponent(str)
+        let i=0
+        while(i<es.length){
+            if(es.charAt(i)=='%'){
+                array.push(Number.parseInt('0x'+es.charAt(i+1)+es.charAt(i+2)))
+                i+=3
+            }else{
+                array.push(es.charCodeAt(i))
+                i++
+            }
+        }
+        return array
+    
+    })(str)
 }
 
 function accept(sourcecode,node) {

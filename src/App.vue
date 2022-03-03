@@ -20,6 +20,7 @@ import md5Js from './js/FileRaw!./assets/md5.min.txt'
 import sha512Js from './js/FileRaw!./assets/sha512.js.txt'
 //功能测试代码
 const testJs=`
+console.log("也不对【-_.'~!*()】及【@#$&+=:;/?,】编码")
 const obj={
   a:1,b:2,
   c:{

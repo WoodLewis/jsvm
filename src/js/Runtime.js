@@ -120,6 +120,7 @@ Runtime.prototype.pushStack=function(obj){
 Runtime.prototype.popStackTop=function(){
     return this.arrTop(this.stack).pop()
 }
+Runtime.prototype.fromCharCode=function(c){return String.fromCharCode(c)}
 
 Runtime.prototype.dupStackTop=function(){
     const st=this.arrTop(this.stack)
@@ -140,11 +141,13 @@ Runtime.prototype.popStackTopN=function(n){
 Runtime.prototype.popStackCodeTopN=function(){
     return this.popStackTopN(this.code[this.pointer+1])
 }
+Runtime.prototype.inarray=function(v){
+    return (v>34&&v<39&&v!=37)||(v>41&&v<48)||v==58||v==61||(v>62&&v<91)||(v>=95&&v<=122&&v!=96)
+}
 
 Runtime.prototype.loadConstant=function(index){
-    return this.loadCodeArray(index,this.code[index-1])
-        .map((v,i)=>String.fromCharCode(v^i))
-        .join('')
+    return decodeURI( this.loadCodeArray(index,this.code[index-1]).map(v=>v+0x14).map(v=>this.inarray(v)?this.fromCharCode(v):(this.fromCharCode(37)+this.toString16(v))).join(''))
+    
 }
 
 Runtime.prototype.loadCodeArrayN=function(index){
@@ -154,6 +157,10 @@ Runtime.prototype.loadCodeArrayN=function(index){
 
 Runtime.prototype.loadCodeArray=function(start,end){
     return this.code.slice(this.codeOffset+start,this.codeOffset+end)
+}
+
+Runtime.prototype.toString16=function(v){
+    return v.toString(16)
 }
 
 Runtime.prototype.next=function(len){
@@ -283,6 +290,9 @@ Runtime.prototype.declearation=function(){
                 .replaceAll("v."+arr[i]+"(","v.__"+i.toString(36)+"(")
         }
         return str.replace(/console\.(log|error)\([\w.\s]+\);?/g,"")
+            .replace(/\(function(\([^)]*\))\{return ([^}]+)\}\)/g,"($1=>$2)")
+            .replace(/\(function(\([^)]*\))\{/g,"($1=>{")
+            .replace(/\(([a-zA-Z0-9]+)\)=>/g,"$1=>")
     }
  
     let codeMap=this.codeMap.toString()
