@@ -20,6 +20,13 @@ import md5Js from './js/FileRaw!./assets/md5.min.txt'
 import sha512Js from './js/FileRaw!./assets/sha512.js.txt'
 //功能测试代码
 const testJs=`
+const a=127,b=256,c=0x7777,d=0xfffffff,f=0xfffffffff,g=1234.5678
+console.log("a-b="+(a-b))
+console.log("b-a="+(b-a))
+console.log("c-a="+(c-a))
+console.log("d-a="+(d-a))
+console.log("f-d="+(f-d))
+console.log("g-a="+(g-a))
 console.log("也不对【-_.'~!*()】及【@#$&+=:;/?,】编码")
 const obj={
   a:1,b:2,

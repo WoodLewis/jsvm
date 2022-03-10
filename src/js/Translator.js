@@ -8,7 +8,7 @@ class __Translator {
         this.name=null
         this.args=[]
         this.type="Program"
-         /** 字符串常亮库 */
+         /** 字符串常量库 */
         this.consts = []
         this.argsLength=0;
         this.vars = []
@@ -743,7 +743,33 @@ function loadDefVar(vm, node,nextBlockTag) {
             return ;
         }
         if (typeof val === 'number') {
-            vm.code.push([bydecodeDef.loadValue, val])
+            const rawVal=node.raw
+            const isFloat=rawVal.indexOf('.')>=0||rawVal.indexOf('e+')>=0
+            const isNegative=val<0
+            const positive=isNegative?(-val):val
+            if(isNegative){
+                vm.code.push([bydecodeDef.loadValue, 0])
+            }
+            if(positive<0x7fffffff&&!isFloat){
+                if(positive<0xff){
+                    vm.code.push([bydecodeDef.loadValue, positive])
+                }else if(positive<0xffff){
+                    vm.code.push([bydecodeDef.loadValue2, positive>>>8,positive&0xff])
+                }else{
+                    vm.code.push([bydecodeDef.loadValue4,positive>>>24,(positive&0xff0000)>>>16, (positive&0xff00)>>>8,positive&0xff])
+                }
+                if(isNegative){
+                    vm.code.push([bydecodeDef.min])
+                }
+            }else{
+                vm.consts.push(rawVal);
+                vm.code.push([bydecodeDef.loadConst, vm.addConstr(rawVal)])
+                if(isFloat){
+                    vm.code.push([bydecodeDef.parseFloat])
+                }else{
+                    vm.code.push([bydecodeDef.parseInt])
+                }
+            }
             return ;
         } else if (typeof val === 'string') {
             if(val){

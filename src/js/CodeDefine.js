@@ -136,6 +136,60 @@ export default {
             runtime.next(2)
         }
     },
+    loadValue2: {
+        des: {
+            code: "loadValue2 i8 i8",
+            stack: "[]",
+            newStack: "[val]"
+        },
+        name: 'loadValue2',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack((runtime.nextCodeVal()<<8)+runtime.nextCodeNVal(2))
+            runtime.next(3)
+        }
+    },
+    loadValue4: {
+        des: {
+            code: "loadValue4 i8 i8 i8 i8",
+            stack: "[]",
+            newStack: "[val]"
+        },
+        name: 'loadValue4',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            runtime.pushStack((runtime.nextCodeVal()<<24)+(runtime.nextCodeNVal(2)<<16)+(runtime.nextCodeNVal(3)<<8)+runtime.nextCodeNVal(4))
+            runtime.next(5)
+        }
+    },
+    parseInt: {
+        des: {
+            code: "parseInt",
+            stack: "[str]",
+            newStack: "[val]"
+        },
+        name: 'loadValue',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const str=runtime.popStackTop()
+            runtime.pushStack(Number.parseInt(str))
+            runtime.next(1)
+        }
+    },
+    parseFloat: {
+        des: {
+            code: "parseFloat",
+            stack: "[str]",
+            newStack: "[val]"
+        },
+        name: 'loadValue',
+        val: byteCode_define_index++,
+        _apply:function(runtime){
+            const str=runtime.popStackTop()
+            runtime.pushStack(Number.parseFloat(str))
+            runtime.next(1)
+        }
+    },
     loadThis:{
         des: {
             code: "loadThis",
@@ -204,11 +258,11 @@ export default {
     },
     min: {
         des: {
-            code: "min",
+            code: "minus",
             stack: "[arg1,arg2]",
             newStack: "[retVal]"
         },
-        name: 'min',
+        name: 'minus',
         val: byteCode_define_index++,
         _apply:function(runtime){
             const right=runtime.popStackTop()

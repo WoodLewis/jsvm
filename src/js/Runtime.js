@@ -352,7 +352,11 @@ const envProxy=new Proxy({${this.extenals.map(v=>v+":window[\""+v+"\"]").join(",
 }
 
 Runtime.prototype.toString=function(){
-    return this.declearation()+"\n"+this.newInstance()
+    return '/* 公共代码部分是不变的，可以独立写入一个文件再引入 */\n/* 公共代码部分开始 */\n'+
+        this.declearation()+
+        "\n/*公共代码部分结束*/"+
+        "\n\n\n//下面的部分是左侧代码加密后的源码，同样的代码两次转换的结果不同但等效\n"+
+        this.newInstance()
 }
 
 
