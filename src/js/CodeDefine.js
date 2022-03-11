@@ -59,9 +59,7 @@ export default {
         name: 'loadConst',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            const index=runtime.nextCodeVal()
-            const str=runtime.loadConstant(index)
-            runtime.pushStack(str)
+            runtime.pushStack(runtime.loadConstant(runtime.nextCodeVal()))
             runtime.next(2)
         }
     },
@@ -171,8 +169,7 @@ export default {
         name: 'loadValue',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            const str=runtime.popStackTop()
-            runtime.pushStack(Number.parseInt(str))
+            runtime.pushStack(runtime.toInt(runtime.popStackTop()))
             runtime.next(1)
         }
     },
@@ -185,8 +182,7 @@ export default {
         name: 'loadValue',
         val: byteCode_define_index++,
         _apply:function(runtime){
-            const str=runtime.popStackTop()
-            runtime.pushStack(Number.parseFloat(str))
+            runtime.pushStack(runtime.toFloat(runtime.popStackTop()))
             runtime.next(1)
         }
     },

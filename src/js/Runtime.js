@@ -159,12 +159,20 @@ Runtime.prototype.loadCodeArray=function(start,end){
     return this.code.slice(this.codeOffset+start,this.codeOffset+end)
 }
 
-Runtime.prototype.toString16=function(v){
-    return v.toString(16)
+Runtime.prototype.toString16=function(_){
+    return _.toString(16)
+}
+
+Runtime.prototype.toInt=function(_){
+    return Number.parseInt(_)
 }
 
 Runtime.prototype.next=function(len){
     this.pointer+=len
+}
+
+Runtime.prototype.toFloat=function(_){
+    return Number.parseFloat(_)
 }
 
 Runtime.prototype.loadThis=function(){
@@ -348,7 +356,10 @@ const envProxy=new Proxy({${this.extenals.map(v=>v+":window[\""+v+"\"]").join(",
     }
 })`     
     }
-    return "const bytecodes=["+code.map((v,i)=>{v+=(i<255?255:i);return (v<255)?v:("0x"+v.toString(16))}).join(",")+"]\n"+proxy+"\nconst runtime=new Runtime([bytecodes],0"+(proxy?",envProxy":"")+");\nruntime.run()"
+    // return "const bytecodes=["+code.map((v,i)=>{v+=(i<255?255:i);return (v<255)?v:("0x"+v.toString(16))}).join(",")+"]\n"+
+    //         proxy+
+    //         "\nconst runtime=new Runtime([bytecodes],0"+(proxy?",envProxy":"")+");\nruntime.run()"
+    return proxy+ "\nconst runtime=new Runtime(["+code.map(v=>"0x"+v.toString(16))+"],0"+(proxy?",envProxy":"")+");\nruntime.run()"
 }
 
 Runtime.prototype.toString=function(){
