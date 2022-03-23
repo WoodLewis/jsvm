@@ -33,5 +33,8 @@ module.exports = {
         '@': resolve('src')
       }
     }
+  },
+  chainWebpack: (config) => {
+    config.optimization.minimize(false)
   }
 }
