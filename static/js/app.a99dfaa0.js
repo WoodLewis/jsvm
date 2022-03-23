@@ -211,6 +211,11 @@ module.exports = __webpack_require__("56d7");
 //
 //
 //
+//
+//
+//
+//
+//
 
 
 
@@ -289,12 +294,12 @@ var es_promise_finally = __webpack_require__("a79d");
 // EXTERNAL MODULE: ./node_modules/vue/dist/vue.runtime.esm.js
 var vue_runtime_esm = __webpack_require__("2b0e");
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"5138b6f0-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--1-0!./node_modules/vue-loader/lib??vue-loader-options!./src/App.vue?vue&type=template&id=e8dfc344&
-var Appvue_type_template_id_e8dfc344_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{attrs:{"id":"app"}},[_c('button',{on:{"click":_vm.compileMd5}},[_vm._v("编译md5")]),_c('button',{on:{"click":_vm.compileSha512}},[_vm._v("编译sha512")]),_c('div',{staticStyle:{"display":"flex"}},[_c('code-viewer',{key:1,staticStyle:{"width":"600px"},attrs:{"sourceCode":_vm.sourceCode},on:{"code-change":_vm.changeSource}}),_c('code-viewer',{key:2,staticStyle:{"width":"600px"},attrs:{"sourceCode":_vm.compiledCode},on:{"code-change":_vm.changeCode}})],1),_c('button',{on:{"click":_vm.compileCode}},[_vm._v("转换")]),_c('button',{on:{"click":_vm.runCode}},[_vm._v("运行")])])}
-var staticRenderFns = []
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"5138b6f0-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--1-0!./node_modules/vue-loader/lib??vue-loader-options!./src/App.vue?vue&type=template&id=229fb9e1&
+var Appvue_type_template_id_229fb9e1_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{attrs:{"id":"app"}},[_vm._m(0),_c('br'),_c('button',{on:{"click":_vm.compileMd5}},[_vm._v("编译md5")]),_c('button',{on:{"click":_vm.compileSha512}},[_vm._v("编译sha512")]),_c('div',{staticStyle:{"display":"flex"}},[_c('code-viewer',{key:1,staticStyle:{"width":"600px"},attrs:{"sourceCode":_vm.sourceCode},on:{"code-change":_vm.changeSource}}),_c('code-viewer',{key:2,staticStyle:{"width":"600px"},attrs:{"sourceCode":_vm.compiledCode},on:{"code-change":_vm.changeCode}})],1),_c('button',{on:{"click":_vm.compileCode}},[_vm._v("转换")]),_c('button',{on:{"click":_vm.runCode}},[_vm._v("运行")])])}
+var staticRenderFns = [function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('span',[_vm._v(" 这是使用纯js实现的一个js编译&解释器，用于在没有webassenbly环境的情况下加密关键前端代码。作为虚拟机上的解释器，当然性能就不要指望了，最好不要用来做大计算量的任务。"),_c('br'),_vm._v(" 在左侧编辑器输入要加密的js代码，点击转换，会在右侧编辑器显示出加密后的代码，点击运行会执行一遍编译后的代码。 ")])}]
 
 
-// CONCATENATED MODULE: ./src/App.vue?vue&type=template&id=e8dfc344&
+// CONCATENATED MODULE: ./src/App.vue?vue&type=template&id=229fb9e1&
 
 // EXTERNAL MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--13-0!./node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--1-0!./node_modules/vue-loader/lib??vue-loader-options!./src/App.vue?vue&type=script&lang=js&
 var Appvue_type_script_lang_js_ = __webpack_require__("199c");
@@ -318,7 +323,7 @@ var componentNormalizer = __webpack_require__("2877");
 
 var component = Object(componentNormalizer["a" /* default */])(
   src_Appvue_type_script_lang_js_,
-  Appvue_type_template_id_e8dfc344_render,
+  Appvue_type_template_id_229fb9e1_render,
   staticRenderFns,
   false,
   null,
